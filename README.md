@@ -63,3 +63,16 @@ Behaviour worth knowing:
 - GitHub pauses scheduled workflows after 60 days without repo activity. If that happens, re-enable it from the
   Actions tab (any push also resets the clock).
 - Scheduled runs can start several minutes late; "every 30 min" is approximate.
+
+## Reliable refresh: Cloudflare trigger
+
+GitHub's own `schedule` cron is best-effort (it can skip runs for hours), so `trigger-worker/` holds a tiny
+Cloudflare Worker that starts the "Scrape and deploy" workflow every 30 minutes via the GitHub API. The workflow's
+own cron stays as a backup; overlapping runs queue one at a time.
+
+- Deploy / update: `cd trigger-worker && npm install && npx wrangler deploy`
+- Token: a fine-grained GitHub token limited to this repo with **Actions: Read and write**, stored as a Worker secret
+  (never committed): `npx wrangler secret put GITHUB_TOKEN`. Tokens expire — renew it before then, or the Worker's
+  runs will fail (visible with `npx wrangler tail`).
+- Cloud-triggered runs show in the Actions tab as `workflow_dispatch` events.
+- Tests: `cd trigger-worker && npm test`

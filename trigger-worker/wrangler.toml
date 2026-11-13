@@ -1,0 +1,17 @@
+name = "fennell-ice-trigger"
+main = "src/index.js"
+compatibility_date = "2026-11-01"
+
+# Only runs on its cron; no public workers.dev URL.
+workers_dev = false
+
+[triggers]
+# Cron is UTC. Every 30 minutes.
+crons = ["*/30 * * * *"]
+
+[vars]
+GITHUB_REPO = "questionmrkman/sportsplex-ice"
+WORKFLOW_FILE = "pages.yml"
+GITHUB_REF = "main"
+
+# Secret (set once, never committed):  npx wrangler secret put GITHUB_TOKEN
