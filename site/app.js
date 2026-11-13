@@ -399,7 +399,7 @@ function renderMeta() {
   const failed = DATA.sources.filter((s) => !s.ok);
   const el = $('#freshness');
   el.className = `freshness${failed.length ? ' bad' : age > 6 ? ' stale' : ''}`;
-  el.replaceChildren(h('span', { class: 'dot' }),
+  el.replaceChildren(h('span', { class: 'fresh-dot' }),
     `Updated ${relTime(DATA.generatedAt)}${failed.length ? ` · ${failed.length} source${failed.length > 1 ? 's' : ''} unavailable` : age > 6 ? ' · may be out of date' : ''}`);
   el.title = new Date(DATA.generatedAt).toLocaleString('en-CA', { timeZone: TZ });
 
