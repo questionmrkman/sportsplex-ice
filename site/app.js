@@ -180,14 +180,51 @@ function layoutLanes(items) {
   return sorted;
 }
 
+const weekDays = () => Array.from({ length: 7 }, (_, i) => addDays(state.date, i));
+
+function timeRange(items) {
+  const startMin = Math.floor(Math.min(...items.map((i) => i.s)) / 60) * 60;
+  const endMin = Math.max(startMin + 120, Math.ceil(Math.max(...items.map((i) => i.e ?? i.s + 60)) / 60) * 60);
+  return { startMin, endMin };
+}
+
+function timelineAxis(startMin, endMin, height, perMin) {
+  const axis = h('div', { class: 'tl-axis', style: `height:${height}px` });
+  for (let m = startMin; m <= endMin; m += 60) {
+    axis.append(h('span', { style: `top:${(m - startMin) * perMin}px` }, m === startMin || m === endMin ? '' : fmtClock(m).replace(':00 ', ' ')));
+  }
+  return axis;
+}
+
+/** One positioned event block. `showPad` adds a "P2" tag (used when pads share a column). */
+function timelineBlock(it, startMin, perMin, showPad) {
+  const hgt = Math.max((it.end - it.s) * perMin - 2, 18);
+  const w = 100 / it.lanes;
+  const cls = ['blk', `k-${it.slot.kind}`, it.lanes >= 3 ? 'dense' : '', hgt < 34 ? 'tiny' : hgt < 52 ? 'short' : ''].filter(Boolean).join(' ');
+  const sec = secondary(it.slot);
+  const padTag = showPad && it.slot.pad != null ? ` · P${it.slot.pad}` : '';
+  return h('button', {
+    type: 'button', class: cls,
+    style: `top:${(it.s - startMin) * perMin}px;height:${hgt}px;left:calc(${it.lane * w}% + 3px);width:calc(${w}% - 6px)`,
+    title: `${fmtRange(it)}${padTag} · ${primary(it.slot)}${sec ? ' · ' + sec : ''}`,
+    onclick: () => openDetail(it),
+  },
+    h('span', { class: 't' }, fmtRange(it) + padTag),
+    h('span', { class: 'n' }, primary(it.slot)),
+    h('span', { class: 'o' }, [sec, SHORT[it.slot.source]].filter(Boolean).join(' · ')));
+}
+
 function renderTimeline(root) {
+  return state.range === 'week' ? renderWeekTimeline(root) : renderDayTimeline(root);
+}
+
+function renderDayTimeline(root) {
   const items = visibleOn(state.date);
   if (!items.length) return root.append(emptyState());
 
   const hasUnassigned = items.some((i) => i.slot.pad == null);
   const cols = [...PADS.filter((p) => !state.xp.has(p)), ...(hasUnassigned ? [null] : [])];
-  const startMin = Math.floor(Math.min(...items.map((i) => i.s)) / 60) * 60;
-  const endMin = Math.max(startMin + 120, Math.ceil(Math.max(...items.map((i) => i.e ?? i.s + 60)) / 60) * 60);
+  const { startMin, endMin } = timeRange(items);
   const height = ((endMin - startMin) / 60) * HOUR_PX;
   const perMin = HOUR_PX / 60;
   const now = torontoNow();
@@ -208,42 +245,56 @@ function renderTimeline(root) {
     grid.append(h('div', { class: 'tl-head' }, p == null ? 'Pad unknown' : `Pad ${p}`, h('small', {}, `${count} slot${count === 1 ? '' : 's'}`)));
   }
 
-  const axis = h('div', { class: 'tl-axis', style: `height:${height}px` });
-  for (let m = startMin; m <= endMin; m += 60) {
-    axis.append(h('span', { style: `top:${(m - startMin) * perMin}px` }, m === startMin || m === endMin ? '' : fmtClock(m).replace(':00 ', ' ')));
-  }
-  grid.append(axis);
+  grid.append(timelineAxis(startMin, endMin, height, perMin));
 
   for (const p of cols) {
     const col = h('div', { class: 'tl-col', style: `height:${height}px;--hh:${HOUR_PX}px` });
-    for (const it of laid.get(p)) {
-      const top = (it.s - startMin) * perMin;
-      const hgt = Math.max((it.end - it.s) * perMin - 2, 18);
-      const w = 100 / it.lanes;
-      const cls = ['blk', `k-${it.slot.kind}`, it.lanes >= 3 ? 'dense' : '', hgt < 34 ? 'tiny' : hgt < 52 ? 'short' : ''].filter(Boolean).join(' ');
-      const sec = secondary(it.slot);
-      col.append(
-        h('button', {
-          type: 'button', class: cls,
-          style: `top:${top}px;height:${hgt}px;left:calc(${it.lane * w}% + 3px);width:calc(${w}% - 6px)`,
-          title: `${fmtRange(it)} · ${primary(it.slot)}${sec ? ' · ' + sec : ''}`,
-          onclick: () => openDetail(it),
-        },
-          h('span', { class: 't' }, fmtRange(it)),
-          h('span', { class: 'n' }, primary(it.slot)),
-          h('span', { class: 'o' }, [sec, SHORT[it.slot.source]].filter(Boolean).join(' · '))),
-      );
-    }
+    for (const it of laid.get(p)) col.append(timelineBlock(it, startMin, perMin, false));
     if (showNow) col.append(h('div', { class: 'now-line', style: `top:${(now.min - startMin) * perMin}px` }));
     grid.append(col);
   }
   root.append(h('div', { class: 'tl-scroll' }, grid));
 }
 
+/** Seven day columns on one shared time axis; the pads visible under the filters share each day. */
+function renderWeekTimeline(root) {
+  const days = weekDays();
+  const perDay = days.map((d) => visibleOn(d));
+  const all = perDay.flat();
+  if (!all.length) return root.append(emptyState());
+
+  const { startMin, endMin } = timeRange(all);
+  const height = ((endMin - startMin) / 60) * HOUR_PX;
+  const perMin = HOUR_PX / 60;
+  const now = torontoNow();
+
+  const laid = perDay.map((items) => layoutLanes(items));
+  const widths = laid.map((items) => Math.max(132, 100 * Math.max(1, ...items.map((i) => i.lanes))));
+  const grid = h('div', {
+    class: 'tl',
+    style: `grid-template-columns:56px ${widths.map((w) => `minmax(${w}px,${w}fr)`).join(' ')};min-width:${56 + widths.reduce((a, b) => a + b, 0)}px`,
+  });
+  grid.append(h('div', { class: 'tl-head' }));
+  days.forEach((d, i) => {
+    const n = perDay[i].length;
+    grid.append(h('div', { class: `tl-head${d === now.date ? ' today' : ''}` }, shortDate(d), h('small', {}, n ? `${n} slot${n === 1 ? '' : 's'}` : 'nothing listed')));
+  });
+  grid.append(timelineAxis(startMin, endMin, height, perMin));
+
+  days.forEach((d, i) => {
+    const isToday = d === now.date;
+    const col = h('div', { class: `tl-col${isToday ? ' today' : ''}`, style: `height:${height}px;--hh:${HOUR_PX}px` });
+    for (const it of laid[i]) col.append(timelineBlock(it, startMin, perMin, true));
+    if (isToday && now.min >= startMin && now.min <= endMin) col.append(h('div', { class: 'now-line', style: `top:${(now.min - startMin) * perMin}px` }));
+    grid.append(col);
+  });
+  root.append(h('div', { class: 'tl-scroll' }, grid));
+}
+
 // ---- agenda -------------------------------------------------------------------
 
 function renderAgenda(root) {
-  const days = state.range === 'week' ? Array.from({ length: 7 }, (_, i) => addDays(state.date, i)) : [state.date];
+  const days = state.range === 'week' ? weekDays() : [state.date];
   const now = torontoNow();
   let any = false;
   for (const d of days) {
@@ -270,8 +321,9 @@ function renderAgenda(root) {
 
 function emptyState() {
   const dates = [...BY_DATE.keys()].sort();
-  const outside = state.view === 'timeline' && (state.date < dates[0] || state.date > dates.at(-1));
-  const filtered = (BY_DATE.get(state.date) || []).length > 0;
+  const days = state.range === 'week' ? weekDays() : [state.date];
+  const outside = days[0] > dates.at(-1) || days.at(-1) < dates[0];
+  const filtered = days.some((d) => (BY_DATE.get(d) || []).length > 0);
   return h('div', { class: 'empty' },
     h('strong', {}, filtered ? 'Nothing matches your filters' : 'No ice listed'),
     filtered
@@ -309,13 +361,12 @@ function openDetail(it) {
 
 function renderHeading() {
   $('#heading').textContent =
-    state.view === 'agenda' && state.range === 'week'
+    state.range === 'week'
       ? `${shortDate(state.date)} – ${shortDate(addDays(state.date, 6))}`
       : longDate(state.date);
   $('#date').value = state.date;
   document.querySelectorAll('[data-view]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.view === state.view)));
   document.querySelectorAll('[data-range]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.range === state.range)));
-  $('#rangeSeg').hidden = state.view !== 'agenda';
   $('#q').value = state.q;
 }
 
@@ -375,7 +426,7 @@ function render() {
 // ---- events -------------------------------------------------------------------
 
 function step(dir) {
-  const n = state.view === 'agenda' && state.range === 'week' ? 7 : 1;
+  const n = state.range === 'week' ? 7 : 1;
   state.date = addDays(state.date, dir * n);
   render();
 }

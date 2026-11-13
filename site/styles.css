@@ -214,3 +214,10 @@ dialog .close { position: absolute; top: 8px; right: 10px; border: 0; background
 
 /* tournament titles are "Home @ Away": let them wrap instead of clipping */
 .k-tournament.blk:not(.short):not(.tiny) .n { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+
+/* week timeline */
+.tl-head.today { color: var(--accent); box-shadow: inset 0 -2px 0 var(--accent); }
+.tl-col.today { background-color: color-mix(in srgb, var(--accent) 6%, transparent); }
+/* keep the hour labels visible while scrolling a wide (week) timeline sideways */
+.tl-axis { position: sticky; left: 0; z-index: 2; background: var(--surface); }
+.tl-head:first-child { left: 0; z-index: 4; }
