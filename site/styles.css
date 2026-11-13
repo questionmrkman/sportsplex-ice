@@ -58,7 +58,7 @@ body {
   color: var(--ink);
   font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
-.wrap { max-width: 1180px; margin: 0 auto; padding: 0 16px; }
+.wrap { padding: 0 clamp(16px, 2.5vw, 40px); } /* full width; gutters grow a little on big screens */
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 button, input { font: inherit; color: inherit; }
 button { cursor: pointer; }
@@ -221,3 +221,7 @@ dialog .close { position: absolute; top: 8px; right: 10px; border: 0; background
 /* keep the hour labels visible while scrolling a wide (week) timeline sideways */
 .tl-axis { position: sticky; left: 0; z-index: 2; background: var(--surface); }
 .tl-head:first-child { left: 0; z-index: 4; }
+
+/* wide screens: lay the agenda's days out side by side instead of one very long row each */
+.view:has(> .ag-day) { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 440px), 1fr)); gap: 0 22px; align-items: start; }
+.view > .ag-day:only-child { grid-column: 1 / -1; max-width: 980px; } /* a single day stays a readable list */
