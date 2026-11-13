@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   to24h, padFrom, isFennell, parseTeamCalendar, parsePerfectMindClass,
-  parseTournamentDay, tournamentDate, tournamentDayLinks,
+  parseTournamentDay, tournamentDate, tournamentDayLinks, parsePerfectMindCourse, torontoParts,
 } from './sources.js';
 
 const site = { id: 'capitals', name: 'Credit River Capitals', url: 'https://example.test/Calendar/' };
@@ -112,4 +112,36 @@ test('tournament day pages: date, links and Fennell-only games', () => {
   assert.equal(slots[0].endEstimated, true);
   assert.equal(slots[0].url, 'https://silverstick.org/Tournaments/31575/Games/112/');
   assert.match(slots[1].detail, /Score 3-2$/);
+});
+
+test('torontoParts reads PerfectMind instants in Toronto time (EDT and EST)', () => {
+  assert.deepEqual(torontoParts('/Date(1790370300000)/'), { date: '2026-09-25', time: '17:05' }); // 21:05Z, EDT
+  assert.deepEqual(torontoParts('/Date(1796153100000)/'), { date: '2026-12-01', time: '14:25' }); // 19:25Z, EST
+  assert.equal(torontoParts('nope'), null);
+});
+
+test('parsePerfectMindCourse expands a course into its Fennell sessions', () => {
+  const lessons = { id: 'lessons', name: 'City Learn to Skate' };
+  const cal = { url: 'https://x.test/cal' };
+  const course = {
+    EventId: 'e1', EventName: 'Skating 1A ( 3 to 6 Years)', Location: "Susan Fennell Sportsplex (South Fletcher's)",
+    Facility: 'SF Arena Ice (4) 0:15', BookButtonText: 'CLOSED', Spots: '', PriceRange: '$103.40 - $155.10', NumberOfSessions: 2,
+    Occurrences: [
+      { StartDateWithOffset: '/Date(1790370300000)/', EndDateWithOffset: '/Date(1790372100000)/', OccurrenceOrderNumber: 0 },
+      { StartDateWithOffset: '/Date(1790975100000)/', EndDateWithOffset: '/Date(1790976900000)/', OccurrenceOrderNumber: 1 },
+    ],
+  };
+  const slots = parsePerfectMindCourse(course, lessons, cal);
+  assert.equal(slots.length, 2);
+  assert.equal(slots[0].date, '2026-09-25');
+  assert.equal(slots[0].start, '17:05');
+  assert.equal(slots[0].end, '17:35');
+  assert.equal(slots[0].pad, 4);
+  assert.equal(slots[0].kind, 'lesson');
+  assert.equal(slots[0].title, 'Skating 1A (3 to 6 Years)');
+  assert.equal(slots[1].detail, 'Session 2 of 2 · Registration closed');
+  assert.equal(slots[0].url, 'https://x.test/cal');
+
+  const elsewhere = { ...course, Location: 'Earnscliffe Recreation Centre', Facility: 'ERC Arena Ice (1) 0:00' };
+  assert.deepEqual(parsePerfectMindCourse(elsewhere, lessons, cal), []);
 });

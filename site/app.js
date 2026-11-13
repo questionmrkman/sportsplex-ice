@@ -7,6 +7,7 @@ const KINDS = {
   game: 'Games',
   tournament: 'Tournament',
   practice: 'Practices',
+  lesson: 'Lessons',
   public: 'Public skate',
   shinny: 'Shinny',
   figure: 'Figure skating',
@@ -17,10 +18,10 @@ const KINDS = {
 };
 const KIND_VAR = (k) => `var(--${k}-fg)`;
 const KIND_SINGULAR = {
-  game: 'Game', tournament: 'Tournament game', practice: 'Practice', public: 'Public skate', shinny: 'Shinny', figure: 'Figure skating',
+  game: 'Game', tournament: 'Tournament game', practice: 'Practice', lesson: 'Skating lesson', public: 'Public skate', shinny: 'Shinny', figure: 'Figure skating',
   stick: 'Stick & puck', program: 'Program', event: 'Event', unused: 'Unused ice',
 };
-const SHORT = { capitals: 'Capitals', bhl: 'Brampton Hockey', canadettes: 'Canadettes', silverstick: 'Silver Stick', city: 'City of Brampton' };
+const SHORT = { capitals: 'Capitals', bhl: 'Brampton Hockey', canadettes: 'Canadettes', silverstick: 'Silver Stick', lessons: 'Learn to Skate', city: 'City of Brampton' };
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -146,7 +147,7 @@ function primary(slot) {
 }
 function secondary(slot) {
   if (slot.kind === 'game') return slot.title; // "vs Opponent"
-  if (slot.kind === 'tournament') return slot.detail || ''; // division · pool · game no.
+  if (slot.kind === 'tournament' || slot.kind === 'lesson') return slot.detail || ''; // division/pool or session · status
   if (slot.kind === 'practice') return 'Practice';
   if (slot.kind === 'unused') return [slot.team, slot.org].filter(Boolean).join(' · ');
   return slot.spots || slot.price || '';
@@ -291,7 +292,7 @@ function openDetail(it) {
     slot.opponent && ['Opponent', slot.opponent],
     slot.price && ['Price', slot.price],
     slot.spots && ['Availability', slot.spots],
-    slot.detail && !['public', 'shinny', 'tournament'].includes(slot.kind) && ['Notes', slot.detail],
+    slot.detail && !['public', 'shinny', 'tournament', 'lesson'].includes(slot.kind) && ['Notes', slot.detail],
     ['Source', slot.org],
   ].filter(Boolean);
   $('#detailBody').replaceChildren(

@@ -14,6 +14,7 @@
   --shinny-bg: #d9f1f1;    --shinny-fg: #0b6468;
   --figure-bg: #ece3f8;    --figure-fg: #5b2e9e;
   --tournament-bg: #fff0d1; --tournament-fg: #8a4b00;
+  --lesson-bg: #e4e7fb;    --lesson-fg: #3a40a6;
   --stick-bg: #eaf3cf;     --stick-fg: #4a6a00;
   --program-bg: #e8ebef;   --program-fg: #3d4b5c;
   --event-bg: #fbe3ef;     --event-fg: #9c1f5b;
@@ -40,6 +41,7 @@
     --shinny-bg: #12312f;   --shinny-fg: #74d9db;
     --figure-bg: #2a1f3f;   --figure-fg: #c5a6ff;
     --tournament-bg: #3a2a10; --tournament-fg: #ffb454;
+    --lesson-bg: #20254a;   --lesson-fg: #aab1ff;
     --stick-bg: #2a3510;    --stick-fg: #c3e06b;
     --program-bg: #212a35;  --program-fg: #b3c0cf;
     --event-bg: #3a1a2b;    --event-fg: #ff9cc7;
@@ -112,6 +114,7 @@ input[type="search"] { flex: 1 1 240px; min-width: 0; background: var(--bg); bor
 /* shared event colours */
 .k-game { --bg-k: var(--game-bg); --fg-k: var(--game-fg); }
 .k-tournament { --bg-k: var(--tournament-bg); --fg-k: var(--tournament-fg); }
+.k-lesson { --bg-k: var(--lesson-bg); --fg-k: var(--lesson-fg); }
 .k-practice { --bg-k: var(--practice-bg); --fg-k: var(--practice-fg); }
 .k-public { --bg-k: var(--public-bg); --fg-k: var(--public-fg); }
 .k-shinny { --bg-k: var(--shinny-bg); --fg-k: var(--shinny-fg); }

@@ -6,11 +6,13 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as cheerio from 'cheerio';
 import {
-  UA, parseTeamCalendar, parsePerfectMindClass, parseTournamentDay, tournamentDate, tournamentDayLinks,
+  UA, parseTeamCalendar, parsePerfectMindClass, parsePerfectMindCourse, parseTournamentDay, tournamentDate, tournamentDayLinks,
 } from './sources.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const OUT_FILE = path.join(ROOT, 'site', 'data', 'schedule.json');
+
+const PM_BASE = 'https://cityofbrampton.perfectmind.com';
 
 export const SOURCES = [
   { id: 'capitals', name: 'Credit River Capitals', type: 'team', url: 'https://creditrivercapitals.ca/Calendar/' },
@@ -27,7 +29,23 @@ export const SOURCES = [
     widgetId: '15f6af07-39c5-473e-b053-96653f77a406',
     calendarId: '66a6c983-2ead-42a9-8445-d926fa974fbf',
   },
+  {
+    id: 'lessons',
+    name: 'City Learn to Skate',
+    type: 'perfectmind-courses',
+    base: PM_BASE,
+    tenant: '23782',
+    widgetId: '15f6af07-39c5-473e-b053-96653f77a406',
+    calendars: [
+      { id: '5b23c80e-5005-446d-aaa1-7c81d2cf6cbb', label: '3 to 6 Years', url: `${PM_BASE}/23782/Clients/BookMe4BookingPages/BookingCoursesPage?calendarId=5b23c80e-5005-446d-aaa1-7c81d2cf6cbb&widgetId=15f6af07-39c5-473e-b053-96653f77a406&embed=False` },
+      { id: '672b6b90-a343-4916-b721-94f390d49fcd', label: '6 to 14 Years', url: `${PM_BASE}/23782/Clients/BookMe4BookingPages/BookingCoursesPage?calendarId=672b6b90-a343-4916-b721-94f390d49fcd&widgetId=15f6af07-39c5-473e-b053-96653f77a406&embed=False` },
+      { id: '9acc0595-3619-4432-81d5-daa523423e43', label: '14+ Years', url: `${PM_BASE}/23782/Clients/BookMe4BookingPages/BookingCoursesPage?calendarId=9acc0595-3619-4432-81d5-daa523423e43&widgetId=15f6af07-39c5-473e-b053-96653f77a406&embed=False` },
+      { id: '0ab264f6-5ca7-4bb1-ab92-830bd6b619d7', label: 'Private Lessons', url: `${PM_BASE}/23782/Clients/BookMe4BookingPages/BookingCoursesPage?calendarId=0ab264f6-5ca7-4bb1-ab92-830bd6b619d7&widgetId=15f6af07-39c5-473e-b053-96653f77a406&embed=False` },
+    ],
+  },
 ];
+// Footer link for sources that span several pages.
+for (const s of SOURCES) s.url ??= s.calendars?.[0]?.url;
 
 async function getText(url, init = {}) {
   const res = await fetch(url, {
@@ -93,13 +111,31 @@ async function scrapeTournament(site) {
 
 // -- PerfectMind ------------------------------------------------------------
 
-async function scrapePerfectMind(site, { days }) {
-  const page = await getText(site.url);
+/** Loads a booking page and returns the cookies + anti-forgery token its JSON endpoints need. */
+async function pmSession(pageUrl) {
+  const page = await getText(pageUrl);
   const cookies = (page.headers.getSetCookie?.() || []).map((c) => c.split(';')[0]).join('; ');
-  const html = await page.text();
-  const token = cheerio.load(html)('input[name="__RequestVerificationToken"]').first().attr('value');
+  const token = cheerio.load(await page.text())('input[name="__RequestVerificationToken"]').first().attr('value');
   if (!token) throw new Error('PerfectMind: anti-forgery token not found');
+  return { cookies, token, pageUrl };
+}
 
+async function pmPost(endpoint, session, params) {
+  const res = await getText(endpoint, {
+    method: 'POST',
+    body: new URLSearchParams({ __RequestVerificationToken: session.token, ...params }),
+    headers: {
+      Cookie: session.cookies,
+      'X-Requested-With': 'XMLHttpRequest',
+      Referer: session.pageUrl,
+      'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+    },
+  });
+  return res.json();
+}
+
+async function scrapePerfectMind(site, { days }) {
+  const session = await pmSession(site.url);
   const endpoint = `${site.base}/${site.tenant}/Clients/BookMe4BookingPagesV2/ClassesV2`;
   const limit = new Date();
   limit.setDate(limit.getDate() + days);
@@ -111,24 +147,9 @@ async function scrapePerfectMind(site, { days }) {
   const seenKeys = new Set();
 
   for (let i = 0; i < 60; i++) {
-    const params = {
-      __RequestVerificationToken: token,
-      calendarId: site.calendarId,
-      widgetId: site.widgetId,
-      page: '0',
-    };
+    const params = { calendarId: site.calendarId, widgetId: site.widgetId, page: '0' };
     if (after) params.after = after;
-    const res = await getText(endpoint, {
-      method: 'POST',
-      body: new URLSearchParams(params),
-      headers: {
-        Cookie: cookies,
-        'X-Requested-With': 'XMLHttpRequest',
-        Referer: site.url,
-        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-      },
-    });
-    const json = await res.json();
+    const json = await pmPost(endpoint, session, params);
     const classes = json.classes || [];
     for (const c of classes) {
       const slot = parsePerfectMindClass(c, site);
@@ -143,16 +164,44 @@ async function scrapePerfectMind(site, { days }) {
   return slots;
 }
 
+// -- PerfectMind courses (Learn to Skate series) ----------------------------
+
+async function scrapeLessons(site) {
+  const endpoint = `${site.base}/${site.tenant}/Clients/BookMe4BookingPagesV2/CoursesV2`;
+  const slots = [];
+  const seenCourses = new Set();
+  for (const cal of site.calendars) {
+    const session = await pmSession(cal.url);
+    let after = null;
+    // One response normally holds every course; follow `nextKey` in case it ever pages.
+    for (let i = 0; i < 10; i++) {
+      const params = { calendarId: cal.id, widgetId: site.widgetId, page: '0', bookingMode: '0' };
+      if (after) params.after = after;
+      const json = await pmPost(endpoint, session, params);
+      const courses = json.courses || [];
+      for (const c of courses) {
+        if (seenCourses.has(c.EventId)) continue;
+        seenCourses.add(c.EventId);
+        slots.push(...parsePerfectMindCourse(c, site, cal));
+      }
+      if (!courses.length || !json.nextKey || json.nextKey === after) break;
+      after = json.nextKey;
+    }
+  }
+  return slots;
+}
+
 // -- orchestration ----------------------------------------------------------
 
 function finalize(slots) {
   const seen = new Set();
   const out = [];
   for (const s of slots) {
-    const key = [s.source, s.date, s.start, s.end, s.pad, s.team, s.title, s.opponent].join('|');
+    const { uid, ...slot } = s; // uid only keeps same-looking sessions of different courses apart
+    const key = [s.source, s.date, s.start, s.end, s.pad, s.team, s.title, s.opponent, uid].join('|');
     if (seen.has(key)) continue;
     seen.add(key);
-    out.push({ id: createHash('sha1').update(key).digest('hex').slice(0, 10), ...s });
+    out.push({ id: createHash('sha1').update(key).digest('hex').slice(0, 10), ...slot });
   }
   out.sort(
     (a, b) =>
@@ -176,7 +225,9 @@ export async function runScrape({ months = 8, days = 75, write = true } = {}) {
             ? await scrapeTeamSite(site, { months })
             : site.type === 'tournament'
               ? { slots: await scrapeTournament(site), note: null }
-              : { slots: await scrapePerfectMind(site, { days }), note: null };
+              : site.type === 'perfectmind-courses'
+                ? { slots: await scrapeLessons(site), note: null }
+                : { slots: await scrapePerfectMind(site, { days }), note: null };
         all.push(...slots);
         status.push({ id: site.id, name: site.name, url: site.url, ok: true, count: slots.length, note, ms: Date.now() - t0 });
       } catch (err) {

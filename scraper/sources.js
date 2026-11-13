@@ -230,3 +230,54 @@ export function parseTournamentDay(html, site) {
 
   return slots;
 }
+
+// ---------------------------------------------------------------------------
+// City of Brampton Learn to Skate courses (PerfectMind "courses" JSON)
+// ---------------------------------------------------------------------------
+
+const toronto = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'America/Toronto', year: 'numeric', month: '2-digit', day: '2-digit',
+  hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+});
+
+/** "/Date(1790370300000)/" (a real instant) -> { date:'YYYY-MM-DD', time:'HH:MM' } in Toronto time */
+export function torontoParts(msDate) {
+  const ms = Number(/-?\d+/.exec(msDate || '')?.[0]);
+  if (!Number.isFinite(ms)) return null;
+  const p = Object.fromEntries(toronto.formatToParts(new Date(ms)).map((x) => [x.type, x.value]));
+  return { date: `${p.year}-${p.month}-${p.day}`, time: `${p.hour}:${p.minute}` };
+}
+
+/** One slot per dated session of a course held at Susan Fennell. */
+export function parsePerfectMindCourse(c, site, calendar) {
+  if (!isFennell(c.Location) && !isFennell(c.Facility)) return [];
+  const title = (c.EventName || '').replace(/\(\s+/g, '(').replace(/\s+/g, ' ').trim();
+  const closed = /closed/i.test(c.BookButtonText || '');
+  const status = closed ? 'Registration closed' : (c.BookButtonText || '').replace(/!$/, '').trim();
+  const sessions = c.Occurrences || [];
+  const total = c.NumberOfSessions || sessions.length;
+
+  return sessions.flatMap((o, i) => {
+    const start = torontoParts(o.StartDateWithOffset);
+    const end = torontoParts(o.EndDateWithOffset);
+    if (!start) return [];
+    return [{
+      date: start.date,
+      start: start.time,
+      end: end && end.date === start.date ? end.time : null,
+      endEstimated: !(end && end.date === start.date),
+      pad: padFrom(c.Facility) ?? padFrom(c.Location),
+      source: site.id,
+      org: site.name,
+      kind: 'lesson',
+      title,
+      team: null,
+      opponent: null,
+      detail: [`Session ${(o.OccurrenceOrderNumber ?? i) + 1} of ${total}`, status].filter(Boolean).join(' · '),
+      price: (c.PriceRange || '').trim() || null,
+      spots: (c.Spots || '').trim() || null,
+      url: calendar.url,
+      uid: c.EventId,
+    }];
+  });
+}
