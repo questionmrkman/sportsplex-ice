@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fennell Ice Schedule</title>
+  <meta name="description" content="Live ice schedule for all four pads at Susan Fennell Sportsplex in Brampton: games, practices, public skates and shinny.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8F%92%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="top">
+    <div class="wrap top-inner">
+      <div class="brand">
+        <h1>Fennell Ice Schedule</h1>
+        <p class="sub">Susan Fennell Sportsplex · Brampton, ON · Pads 1–4</p>
+      </div>
+      <div class="freshness" id="freshness" role="status" aria-live="polite">Loading…</div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="controls" aria-label="Date and view">
+      <div class="datenav">
+        <button type="button" id="prev" aria-label="Previous">‹</button>
+        <button type="button" id="today">Today</button>
+        <button type="button" id="next" aria-label="Next">›</button>
+        <label class="datepick"><span class="sr">Jump to date</span><input type="date" id="date"></label>
+        <h2 id="heading" class="heading"></h2>
+      </div>
+      <div class="seg" role="group" aria-label="View">
+        <button type="button" data-view="timeline" aria-pressed="true">Timeline</button>
+        <button type="button" data-view="agenda" aria-pressed="false">Agenda</button>
+      </div>
+      <div class="seg" id="rangeSeg" role="group" aria-label="Agenda range" hidden>
+        <button type="button" data-range="day" aria-pressed="true">Day</button>
+        <button type="button" data-range="week" aria-pressed="false">Week</button>
+      </div>
+    </section>
+
+    <details class="filters" id="filters" open>
+      <summary>Filters <span id="fcount" class="fcount" hidden></span></summary>
+      <div class="filter-row">
+        <span class="flabel">Pad</span>
+        <div class="chips" id="padChips"></div>
+      </div>
+      <div class="filter-row">
+        <span class="flabel">Type</span>
+        <div class="chips" id="kindChips"></div>
+      </div>
+      <div class="filter-row">
+        <span class="flabel">Source</span>
+        <div class="chips" id="srcChips"></div>
+      </div>
+      <div class="filter-row search-row">
+        <label class="sr" for="q">Search teams or events</label>
+        <input type="search" id="q" placeholder="Search team, opponent or event…" autocomplete="off">
+        <button type="button" id="reset" class="link">Reset filters</button>
+      </div>
+    </details>
+
+    <section id="view" class="view" aria-live="polite"></section>
+
+    <footer class="foot">
+      <h3>Data sources</h3>
+      <ul id="sources" class="sources"></ul>
+      <p class="fine">Times come straight from each organization's published calendar and can change without notice —
+        always check with the source before you head out. Game end times aren't published; they're shown as ~90 minutes.
+        "Unused ice" is ice a team has released.</p>
+    </footer>
+  </main>
+
+  <dialog id="detail" aria-labelledby="detailTitle">
+    <form method="dialog"><button class="close" aria-label="Close">×</button></form>
+    <div id="detailBody"></div>
+  </dialog>
+
+  <script src="app.js" type="module"></script>
+</body>
+</html>

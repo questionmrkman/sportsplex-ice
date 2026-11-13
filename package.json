@@ -1,0 +1,14 @@
+{
+  "name": "sportsplex-ice",
+  "version": "1.0.0",
+  "description": "Ice schedule tracker for Susan Fennell Sportsplex (Brampton, ON)",
+  "type": "module",
+  "scripts": {
+    "scrape": "node scraper/scrape.js",
+    "start": "node server.js",
+    "test": "node --test scraper/sources.test.js"
+  },
+  "dependencies": {
+    "cheerio": "^1.0.0"
+  }
+}

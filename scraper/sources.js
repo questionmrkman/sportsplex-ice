@@ -1,0 +1,160 @@
+// Parsers for each data source. Every parser returns normalized slots:
+// { id, date:'YYYY-MM-DD', start:'HH:MM', end:'HH:MM'|null, endEstimated, pad:1-4|null,
+//   source, org, kind, title, team, opponent, detail, price, spots, url }
+import * as cheerio from 'cheerio';
+
+export const UA =
+  'Mozilla/5.0 (compatible; SportsplexIceTracker/1.0; personal schedule viewer)';
+
+const MONTHS = {
+  jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6,
+  jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12,
+};
+
+const pad2 = (n) => String(n).padStart(2, '0');
+
+/** "4:40 PM" -> "16:40" */
+export function to24h(text) {
+  const m = /(\d{1,2}):(\d{2})\s*([AP]M)/i.exec(text || '');
+  if (!m) return null;
+  let h = Number(m[1]) % 12;
+  if (m[3].toUpperCase() === 'PM') h += 12;
+  return `${pad2(h)}:${m[2]}`;
+}
+
+export function addMinutes(hhmm, mins) {
+  const [h, m] = hhmm.split(':').map(Number);
+  const total = Math.min(h * 60 + m + mins, 24 * 60 - 1);
+  return `${pad2(Math.floor(total / 60))}:${pad2(total % 60)}`;
+}
+
+/** True when a venue string refers to Susan Fennell Sportsplex. */
+export function isFennell(location) {
+  return /fennell|\bSF\b/i.test(location || '');
+}
+
+/** "Susan Fennell (Pad 2)", "... - Rink 4", "SF Arena Ice (1)" -> pad number */
+export function padFrom(location) {
+  const m =
+    /(?:pad|rink)\s*(\d)/i.exec(location || '') ||
+    /Arena Ice\s*\(\s*(\d)\s*\)/i.exec(location || '');
+  return m ? Number(m[1]) : null;
+}
+
+// ---------------------------------------------------------------------------
+// Team-site calendars (creditrivercapitals.ca, bramptonhockey.com, ...)
+// ---------------------------------------------------------------------------
+
+/** day-details id looks like "day-Oct-26-2026" */
+function parseDayId(id) {
+  const m = /^day-([A-Za-z]{3})-(\d{1,2})-(\d{4})$/.exec(id || '');
+  if (!m) return null;
+  const month = MONTHS[m[1].toLowerCase()];
+  return `${m[3]}-${pad2(month)}-${pad2(m[2])}`;
+}
+
+function classifyTeamEvent(tags, subject) {
+  const t = tags.join(' ').toLowerCase();
+  if (/unused/i.test(subject)) return 'unused';
+  if (t.includes('game')) return 'game';
+  if (t.includes('practice')) return 'practice';
+  return 'event';
+}
+
+export function parseTeamCalendar(html, site) {
+  const $ = cheerio.load(html);
+  const slots = [];
+
+  $('.day-details').each((_, day) => {
+    const date = parseDayId($(day).attr('id'));
+    if (!date) return;
+
+    $(day)
+      .find('.event-list-item')
+      .each((__, item) => {
+        const $i = $(item);
+        const location = $i.find('.location').first().text().trim();
+        if (!isFennell(location)) return;
+
+        const start = to24h($i.find('.time-primary').first().text());
+        if (!start) return;
+        const endRaw = to24h($i.find('.time-secondary').first().text());
+        const tags = $i
+          .find('.tag')
+          .map((___, t) => $(t).text().trim())
+          .get();
+        const team = $i.find('.subject-owner').first().text().trim();
+        const subject = $i.find('.subject-text').first().clone().children().remove().end().text().trim();
+        const kind = classifyTeamEvent(tags, `${team} ${subject}`);
+        const gameLink = $i.find('a[href*="/Games/"]').first().attr('href');
+        const gameNo = $i.find('.game_no').first().text().trim();
+
+        const isGame = kind === 'game';
+        const end = endRaw || (isGame ? addMinutes(start, 90) : null);
+
+        slots.push({
+          date,
+          start,
+          end,
+          endEstimated: !endRaw,
+          pad: padFrom(location),
+          source: site.id,
+          org: site.name,
+          kind,
+          title: isGame ? subject : kind === 'unused' ? 'Unused ice' : subject || tags.join(', '),
+          team: kind === 'unused' ? null : team || null,
+          opponent: isGame ? subject.replace(/^(vs\.?|@)\s*/i, '') : null,
+          detail: [gameNo, tags.join(' · ')].filter(Boolean).join(' · ') || null,
+          price: null,
+          spots: null,
+          url: gameLink ? new URL(gameLink, site.url).href : site.url,
+        });
+      });
+  });
+
+  return slots;
+}
+
+// ---------------------------------------------------------------------------
+// City of Brampton public programs (PerfectMind widget JSON)
+// ---------------------------------------------------------------------------
+
+export function classifyPublic(name) {
+  const n = name.toLowerCase();
+  if (n.includes('shinny')) return 'shinny';
+  if (n.includes('figure')) return 'figure';
+  if (n.includes('stick')) return 'stick';
+  if (n.includes('skate')) return 'public';
+  return 'program';
+}
+
+export function parsePerfectMindClass(c, site) {
+  const location = `${c.Location || ''} ${c.Facility || ''} ${c.EventName || ''}`;
+  if (!isFennell(c.Location) && !isFennell(c.Facility) && !/Susan Fennell/i.test(c.EventName)) {
+    return null;
+  }
+  const m = /^(\d{4})(\d{2})(\d{2})$/.exec(c.OccurrenceDate || '');
+  if (!m) return null;
+  const start = to24h(c.FormattedStartTime);
+  const end = to24h(c.FormattedEndTime);
+  if (!start) return null;
+
+  const title = (c.EventName || '').split('|')[0].trim();
+  return {
+    date: `${m[1]}-${m[2]}-${m[3]}`,
+    start,
+    end,
+    endEstimated: !end,
+    pad: padFrom(c.Facility) ?? padFrom(location),
+    source: site.id,
+    org: site.name,
+    kind: classifyPublic(title),
+    title,
+    team: null,
+    opponent: null,
+    detail: (c.Spots || '').trim() || null,
+    price: (c.PriceRange || '').trim() || null,
+    spots: (c.Spots || '').trim() || null,
+    url: site.url,
+  };
+}
