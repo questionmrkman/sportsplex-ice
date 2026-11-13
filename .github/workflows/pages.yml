@@ -42,6 +42,16 @@ jobs:
       - name: Verify scrape result
         run: node scraper/verify.js
 
+      - name: Stamp asset versions (cache busting)
+        # Pages lets browsers cache files for 10 minutes. Versioning the script/style URLs with the
+        # commit SHA means a fresh index.html never pairs with a stale app.js or styles.css.
+        env:
+          VERSION: ${{ github.sha }}
+        run: |
+          sed -i -E "s#(styles\.css|app\.js)\"#\1?v=${VERSION::8}\"#g" site/index.html
+          grep -E 'styles\.css\?v=|app\.js\?v=' site/index.html
+          [ "$(grep -cE '(styles\.css|app\.js)\?v=' site/index.html)" -eq 2 ]
+
       - uses: actions/configure-pages@v5
 
       - uses: actions/upload-pages-artifact@v3
