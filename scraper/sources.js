@@ -274,7 +274,7 @@ export function parsePerfectMindCourse(c, site, calendar) {
       team: null,
       opponent: null,
       detail: [`Session ${(o.OccurrenceOrderNumber ?? i) + 1} of ${total}`, status].filter(Boolean).join(' · '),
-      price: (c.PriceRange || '').trim() || null,
+      price: null, // fees intentionally not shown for lessons
       spots: (c.Spots || '').trim() || null,
       url: calendar.url,
       uid: c.EventId,

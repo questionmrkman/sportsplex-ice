@@ -138,6 +138,7 @@ test('parsePerfectMindCourse expands a course into its Fennell sessions', () => 
   assert.equal(slots[0].end, '17:35');
   assert.equal(slots[0].pad, 4);
   assert.equal(slots[0].kind, 'lesson');
+  assert.equal(slots[0].price, null); // fees aren't shown for lessons
   assert.equal(slots[0].title, 'Skating 1A (3 to 6 Years)');
   assert.equal(slots[1].detail, 'Session 2 of 2 · Registration closed');
   assert.equal(slots[0].url, 'https://x.test/cal');
