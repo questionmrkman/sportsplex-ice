@@ -4,7 +4,9 @@ on:
   push:
     branches: [main]
   schedule:
-    - cron: '*/30 * * * *'   # GitHub may delay scheduled runs by several minutes
+    # Every 30 min, but deliberately NOT at :00/:30: GitHub documents the top of the hour as a
+    # high-load time when scheduled runs get delayed or dropped. Off-peak minutes run far more reliably.
+    - cron: '11,41 * * * *'
   workflow_dispatch:
 
 permissions:
