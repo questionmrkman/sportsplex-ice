@@ -5,7 +5,9 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as cheerio from 'cheerio';
-import { UA, parseTeamCalendar, parsePerfectMindClass } from './sources.js';
+import {
+  UA, parseTeamCalendar, parsePerfectMindClass, parseTournamentDay, tournamentDate, tournamentDayLinks,
+} from './sources.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const OUT_FILE = path.join(ROOT, 'site', 'data', 'schedule.json');
@@ -14,6 +16,7 @@ export const SOURCES = [
   { id: 'capitals', name: 'Credit River Capitals', type: 'team', url: 'https://creditrivercapitals.ca/Calendar/' },
   { id: 'bhl', name: 'Brampton Hockey', type: 'team', url: 'https://bramptonhockey.com/Calendar/' },
   { id: 'canadettes', name: 'Brampton Canadettes', type: 'team', url: 'https://bramptoncanadettes.com/Calendar/' },
+  { id: 'silverstick', name: 'Silver Stick Tournament', type: 'tournament', url: 'https://silverstick.org/Tournaments/31575/Schedule/' },
   {
     id: 'city',
     name: 'City of Brampton (Public)',
@@ -69,6 +72,23 @@ async function scrapeTeamSite(site, { months }) {
   }
   if (!lastMonth) throw new Error('No calendar months could be fetched');
   return { slots, note };
+}
+
+// -- tournament (one page per day) -----------------------------------------
+
+async function scrapeTournament(site) {
+  const html = await (await getText(site.url)).text();
+  const slots = parseTournamentDay(html, site);
+  const seenDates = new Set([tournamentDate(html)]);
+  // Days outside the tournament clamp to its first/last day, so track the dates we actually got.
+  for (const link of tournamentDayLinks(html, site.url)) {
+    const dayHtml = await (await getText(link)).text();
+    const date = tournamentDate(dayHtml);
+    if (!date || seenDates.has(date)) continue;
+    seenDates.add(date);
+    slots.push(...parseTournamentDay(dayHtml, site));
+  }
+  return slots;
 }
 
 // -- PerfectMind ------------------------------------------------------------
@@ -154,7 +174,9 @@ export async function runScrape({ months = 8, days = 75, write = true } = {}) {
         const { slots, note } =
           site.type === 'team'
             ? await scrapeTeamSite(site, { months })
-            : { slots: await scrapePerfectMind(site, { days }), note: null };
+            : site.type === 'tournament'
+              ? { slots: await scrapeTournament(site), note: null }
+              : { slots: await scrapePerfectMind(site, { days }), note: null };
         all.push(...slots);
         status.push({ id: site.id, name: site.name, url: site.url, ok: true, count: slots.length, note, ms: Date.now() - t0 });
       } catch (err) {

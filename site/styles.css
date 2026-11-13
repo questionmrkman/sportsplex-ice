@@ -13,7 +13,8 @@
   --public-bg: #def3e4;    --public-fg: #176a36;
   --shinny-bg: #d9f1f1;    --shinny-fg: #0b6468;
   --figure-bg: #ece3f8;    --figure-fg: #5b2e9e;
-  --stick-bg: #fdf0cf;     --stick-fg: #7a5600;
+  --tournament-bg: #fff0d1; --tournament-fg: #8a4b00;
+  --stick-bg: #eaf3cf;     --stick-fg: #4a6a00;
   --program-bg: #e8ebef;   --program-fg: #3d4b5c;
   --event-bg: #fbe3ef;     --event-fg: #9c1f5b;
   --unused-bg: #f1f3f5;    --unused-fg: #6b7886;
@@ -38,7 +39,8 @@
     --public-bg: #14301f;   --public-fg: #7fdb9d;
     --shinny-bg: #12312f;   --shinny-fg: #74d9db;
     --figure-bg: #2a1f3f;   --figure-fg: #c5a6ff;
-    --stick-bg: #36290a;    --stick-fg: #f2c869;
+    --tournament-bg: #3a2a10; --tournament-fg: #ffb454;
+    --stick-bg: #2a3510;    --stick-fg: #c3e06b;
     --program-bg: #212a35;  --program-fg: #b3c0cf;
     --event-bg: #3a1a2b;    --event-fg: #ff9cc7;
     --unused-bg: #1b232d;   --unused-fg: #7d8b9b;
@@ -109,6 +111,7 @@ input[type="search"] { flex: 1 1 240px; min-width: 0; background: var(--bg); bor
 
 /* shared event colours */
 .k-game { --bg-k: var(--game-bg); --fg-k: var(--game-fg); }
+.k-tournament { --bg-k: var(--tournament-bg); --fg-k: var(--tournament-fg); }
 .k-practice { --bg-k: var(--practice-bg); --fg-k: var(--practice-fg); }
 .k-public { --bg-k: var(--public-bg); --fg-k: var(--public-fg); }
 .k-shinny { --bg-k: var(--shinny-bg); --fg-k: var(--shinny-fg); }
@@ -205,3 +208,6 @@ dialog .close { position: absolute; top: 8px; right: 10px; border: 0; background
   .controls, .filters, .foot, dialog { display: none; }
   body { background: #fff; }
 }
+
+/* tournament titles are "Home @ Away": let them wrap instead of clipping */
+.k-tournament.blk:not(.short):not(.tiny) .n { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }

@@ -1,12 +1,13 @@
 # Fennell Ice Schedule
 
-Tracks the ice at **Susan Fennell Sportsplex** (Pads 1–4) by combining four sources:
+Tracks the ice at **Susan Fennell Sportsplex** (Pads 1–4) by combining five sources:
 
 | Source | What it adds | Reach |
 | --- | --- | --- |
 | creditrivercapitals.ca | Capitals games, practices, unused ice | ~5 months |
 | bramptonhockey.com | Brampton Hockey games & practices | ~5 months |
 | bramptoncanadettes.com | Canadettes games & practices | ~5 months |
+| silverstick.org (tournament 31575) | Silver Stick games on Pads 1–3 (Nov 20–22, 2026) | tournament dates |
 | City of Brampton (PerfectMind) | Public skate, shinny, figure skating | ~2 weeks |
 
 ## Run it
@@ -30,6 +31,8 @@ Options: `PORT=8080 REFRESH_MINUTES=15 npm start`. One-off scrape: `npm run scra
 
 ## Notes
 
+- The Silver Stick source is tied to one tournament ID (`31575`, in `SOURCES` in `scraper/scrape.js`). For a new
+  year or tournament, change that URL. Its games publish no end time, so they're drawn as 70 minutes.
 - Pad naming differs per site (`Pad 2`, `Rink 4`, `SF Arena Ice (1)`); all are normalized to Pad 1–4.
 - Games don't publish an end time, so they're drawn as ~90 minutes and labelled "end time not published".
 - The team sites redirect months ~5 months out to a bot-check page. The scraper stops at that point rather than

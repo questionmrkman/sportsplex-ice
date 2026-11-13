@@ -158,3 +158,75 @@ export function parsePerfectMindClass(c, site) {
     url: site.url,
   };
 }
+
+// ---------------------------------------------------------------------------
+// Tournament schedules (silverstick.org): one page per tournament day
+// ---------------------------------------------------------------------------
+
+const TOURNAMENT_GAME_MINUTES = 70; // games start every 70-80 min; end times aren't published
+
+/** The date a tournament day page is showing ("Nov 20, 2026" heading) -> YYYY-MM-DD */
+export function tournamentDate(html) {
+  const $ = cheerio.load(html);
+  const m = /([A-Za-z]{3})[a-z]*\.?\s+(\d{1,2}),\s*(\d{4})/.exec($('.heading-1 .text').first().text());
+  const month = m && MONTHS[m[1].toLowerCase()];
+  return month ? `${m[3]}-${pad2(month)}-${pad2(m[2])}` : null;
+}
+
+/** Links to the other days listed in the page's day picker. */
+export function tournamentDayLinks(html, baseUrl) {
+  const $ = cheerio.load(html);
+  const links = new Set();
+  $('a[href*="/Schedule/?Day="]').each((_, a) => links.add(new URL($(a).attr('href'), baseUrl).href));
+  return [...links];
+}
+
+export function parseTournamentDay(html, site) {
+  const $ = cheerio.load(html);
+  const date = tournamentDate(html);
+  if (!date) return [];
+  const slots = [];
+
+  $('.event-list-item').each((_, item) => {
+    const $i = $(item);
+    const location = $i.find('.location').first().text().trim();
+    if (!isFennell(location)) return;
+    const start = to24h($i.find('.time-primary').first().text());
+    if (!start) return;
+
+    const division = $i.find('.subject-group').first().text().trim();
+    const home = $i.find('.subject-owner').first().text().trim();
+    const awayEl = $i.find('.subject-text').first().clone();
+    const gameNo = awayEl.find('.game_no').text().trim();
+    awayEl.find('.game_no').remove();
+    const away = awayEl.text().trim().replace(/^@\s*/, '');
+    const pool = $i
+      .find('.tag')
+      .map((__, t) => $(t).text().trim())
+      .get()
+      .filter((t) => t && t !== division)
+      .join(' ');
+    const score = $i.find('.game_score').first().text().trim();
+    const gameLink = $i.find('a[href*="/Games/"]').first().attr('href');
+
+    slots.push({
+      date,
+      start,
+      end: addMinutes(start, TOURNAMENT_GAME_MINUTES),
+      endEstimated: true,
+      pad: padFrom(location),
+      source: site.id,
+      org: site.name,
+      kind: 'tournament',
+      title: away ? `${home} @ ${away}` : home,
+      team: null,
+      opponent: null,
+      detail: [division, pool, gameNo, score && `Score ${score}`].filter(Boolean).join(' · ') || null,
+      price: null,
+      spots: null,
+      url: gameLink ? new URL(gameLink, site.url).href : site.url,
+    });
+  });
+
+  return slots;
+}

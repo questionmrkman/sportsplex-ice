@@ -1,6 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { to24h, padFrom, isFennell, parseTeamCalendar, parsePerfectMindClass } from './sources.js';
+import {
+  to24h, padFrom, isFennell, parseTeamCalendar, parsePerfectMindClass,
+  parseTournamentDay, tournamentDate, tournamentDayLinks,
+} from './sources.js';
 
 const site = { id: 'capitals', name: 'Credit River Capitals', url: 'https://example.test/Calendar/' };
 
@@ -76,4 +79,37 @@ test('parsePerfectMindClass maps City programs', () => {
 
   const other = { ...base, EventName: 'Public Skate | Earnscliffe', Facility: 'ERC Arena Ice (1) 0:00', Location: 'Earnscliffe Recreation Centre' };
   assert.equal(parsePerfectMindClass(other, { id: 'city', name: 'City', url: 'https://x.test' }), null);
+});
+
+const tGame = (time, group, pool, home, away, no, loc, score = '') => `
+  <div class="event-list-item"><div class="content"><div class="hover-overlay">
+    <a href="/Tournaments/31575/Games/${no.replace(/\D/g, '')}/">Game Details</a></div><div class="grid-x">
+    <div class="time-primary">${time}</div>
+    <div class="tag-list"><div class="tag fullwidth division_1">${group}</div><div class="tag division_2">${pool}</div></div>
+    <div class="subject-group">${group}</div><div class="subject-owner neutral">${home}</div>
+    <div class="subject-text neutral">@ ${away}<span class="game_no">${no}</span></div>
+    <div class="location local">${loc}</div><div class="game_score">${score}</div>
+  </div></div></div>`;
+
+test('tournament day pages: date, links and Fennell-only games', () => {
+  const html = `<a href="/Tournaments/31575/Schedule/?Day=21&Month=11&Year=2026">Nov 21, 2026</a>
+    <a href="/Tournaments/31575/Schedule/?Day=22&Month=11&Year=2026">Nov 22, 2026</a>
+    <div class="heading-1"><span class="text">Nov 20, 2026</span></div>
+    ${tGame('8:00 AM', 'U14 AA', 'Pool A', 'North York Knights', 'Burlington Eagles', 'RR112', 'Susan Fennell (Pad 3) ')}
+    ${tGame('9:20 AM', 'U14 AA', 'Pool B', 'Team X', 'Team Y', 'RR2', 'CAA Centre - Red')}
+    ${tGame('10:40 AM', 'U16 BB', 'Pool C', 'Team P', 'Team Q', 'RR3', 'Susan Fennell (Pad 1)', '3-2')}`;
+  const site = { id: 'silverstick', name: 'Silver Stick', url: 'https://silverstick.org/Tournaments/31575/Schedule/' };
+  assert.equal(tournamentDate(html), '2026-11-20');
+  assert.deepEqual(tournamentDayLinks(html, site.url).map((u) => new URL(u).searchParams.get('Day')), ['21', '22']);
+
+  const slots = parseTournamentDay(html, site);
+  assert.equal(slots.length, 2); // CAA Centre game is skipped
+  assert.equal(slots[0].kind, 'tournament');
+  assert.equal(slots[0].pad, 3);
+  assert.equal(slots[0].title, 'North York Knights @ Burlington Eagles');
+  assert.equal(slots[0].detail, 'U14 AA · Pool A · RR112');
+  assert.equal(slots[0].end, '09:10');
+  assert.equal(slots[0].endEstimated, true);
+  assert.equal(slots[0].url, 'https://silverstick.org/Tournaments/31575/Games/112/');
+  assert.match(slots[1].detail, /Score 3-2$/);
 });
