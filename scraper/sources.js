@@ -281,3 +281,56 @@ export function parsePerfectMindCourse(c, site, calendar) {
     }];
   });
 }
+
+// ---------------------------------------------------------------------------
+// HockeyLeagueStats league schedules (e.g. McLaughlin Meds Hockey League)
+// ---------------------------------------------------------------------------
+
+const HLS_GAME_MINUTES = 70; // games start every 80 min; end times aren't published
+
+/**
+ * Rows: Num | "Sun-Sep 20" | "8:00 am" | Location | Home | H score | V score | Visitor.
+ * Dates carry no year, so it comes from the "Schedule : 2026 / 2027 ..." heading
+ * (Sep-Dec belong to the first year, Jan-Aug to the second).
+ */
+export function parseHockeyLeagueStats(html, site) {
+  const $ = cheerio.load(html);
+  const heading = /Schedule\s*:[^0-9]*(\d{4})\s*\/\s*(\d{4})/.exec($.root().text().replace(/\s+/g, ' '));
+  if (!heading) throw new Error('HockeyLeagueStats: could not find the season in the schedule heading');
+  const [startYear, endYear] = [Number(heading[1]), Number(heading[2])];
+
+  const slots = [];
+  $('tr').each((_, tr) => {
+    const cells = $(tr).children('td').map((__, td) => $(td).text().replace(/\s+/g, ' ').trim()).get();
+    if (cells.length !== 8) return;
+    const [num, dateText, timeText, location, home, homeScore, visitorScore, visitor] = cells;
+    const d = /^[A-Za-z]{3}-([A-Za-z]{3})\s+(\d{1,2})$/.exec(dateText);
+    const month = d && MONTHS[d[1].toLowerCase()];
+    const start = to24h(timeText);
+    if (!month || !start || !isFennell(location)) return;
+
+    const year = month >= 9 ? startYear : endYear;
+    const played = /^\d+$/.test(homeScore) && /^\d+$/.test(visitorScore);
+    const link = $(tr).find('a[href*="showgame"]').first().attr('href');
+
+    slots.push({
+      date: `${year}-${pad2(month)}-${pad2(d[2])}`,
+      start,
+      end: addMinutes(start, HLS_GAME_MINUTES),
+      endEstimated: true,
+      pad: padFrom(location),
+      source: site.id,
+      org: site.name,
+      kind: 'game',
+      title: `${home} vs ${visitor}`,
+      team: null,
+      opponent: null,
+      detail: [`Game ${num}`, played && `Final ${homeScore}–${visitorScore}`].filter(Boolean).join(' · '),
+      price: null,
+      spots: null,
+      url: link ? new URL(link, site.url).href : site.url,
+      uid: `${site.id}-${num}`,
+    });
+  });
+  return slots;
+}

@@ -6,7 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as cheerio from 'cheerio';
 import {
-  UA, parseTeamCalendar, parsePerfectMindClass, parsePerfectMindCourse, parseTournamentDay, tournamentDate, tournamentDayLinks,
+  UA, parseTeamCalendar, parsePerfectMindClass, parsePerfectMindCourse, parseHockeyLeagueStats, parseTournamentDay, tournamentDate, tournamentDayLinks,
 } from './sources.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -19,6 +19,7 @@ export const SOURCES = [
   { id: 'bhl', name: 'Brampton Hockey', type: 'team', url: 'https://bramptonhockey.com/Calendar/' },
   { id: 'canadettes', name: 'Brampton Canadettes', type: 'team', url: 'https://bramptoncanadettes.com/Calendar/' },
   { id: 'silverstick', name: 'Silver Stick Tournament', type: 'tournament', url: 'https://silverstick.org/Tournaments/31575/Schedule/' },
+  { id: 'mmeds', name: 'McLaughlin Meds Hockey League', type: 'hls', url: 'https://www.mclaughlinmedshockey.hockeyleaguestats.com/?go=schedule&did=14&sid=61' },
   {
     id: 'city',
     name: 'City of Brampton (Public)',
@@ -164,6 +165,18 @@ async function scrapePerfectMind(site, { days }) {
   return slots;
 }
 
+// -- HockeyLeagueStats (single schedule page) --------------------------------
+
+async function scrapeHls(site) {
+  // This server answers 406 unless the request carries a normal Accept header.
+  const res = await getText(site.url, {
+    headers: { Accept: 'text/html,application/xhtml+xml;q=0.9,*/*;q=0.8', 'Accept-Language': 'en-CA,en;q=0.8' },
+  });
+  // The page is served as ISO-8859-1.
+  const html = new TextDecoder('windows-1252').decode(await res.arrayBuffer());
+  return parseHockeyLeagueStats(html, site);
+}
+
 // -- PerfectMind courses (Learn to Skate series) ----------------------------
 
 async function scrapeLessons(site) {
@@ -225,9 +238,11 @@ export async function runScrape({ months = 8, days = 75, write = true } = {}) {
             ? await scrapeTeamSite(site, { months })
             : site.type === 'tournament'
               ? { slots: await scrapeTournament(site), note: null }
-              : site.type === 'perfectmind-courses'
-                ? { slots: await scrapeLessons(site), note: null }
-                : { slots: await scrapePerfectMind(site, { days }), note: null };
+              : site.type === 'hls'
+                ? { slots: await scrapeHls(site), note: null }
+                : site.type === 'perfectmind-courses'
+                  ? { slots: await scrapeLessons(site), note: null }
+                  : { slots: await scrapePerfectMind(site, { days }), note: null };
         all.push(...slots);
         status.push({ id: site.id, name: site.name, url: site.url, ok: true, count: slots.length, note, ms: Date.now() - t0 });
       } catch (err) {

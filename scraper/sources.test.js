@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   to24h, padFrom, isFennell, parseTeamCalendar, parsePerfectMindClass,
-  parseTournamentDay, tournamentDate, tournamentDayLinks, parsePerfectMindCourse, torontoParts,
+  parseTournamentDay, tournamentDate, tournamentDayLinks, parsePerfectMindCourse, torontoParts, parseHockeyLeagueStats,
 } from './sources.js';
 
 const site = { id: 'capitals', name: 'Credit River Capitals', url: 'https://example.test/Calendar/' };
@@ -145,4 +145,30 @@ test('parsePerfectMindCourse expands a course into its Fennell sessions', () => 
 
   const elsewhere = { ...course, Location: 'Earnscliffe Recreation Centre', Facility: 'ERC Arena Ice (1) 0:00' };
   assert.deepEqual(parsePerfectMindCourse(elsewhere, lessons, cal), []);
+});
+
+const hlsRow = (num, date, time, loc, home, hs, vs, visitor, link = '') => `
+  <tr><td>${num}</td><td>${link ? `<a href="${link}">${date}</a>` : date}</td><td>${time}</td><td>${loc}</td>
+  <td><b>${home}</b></td><td>${hs}</td><td>${vs}</td><td><b>${visitor}</b></td></tr>`;
+
+test('parseHockeyLeagueStats: year from the season heading, results, Fennell-only', () => {
+  const html = `<table><tr><td>MMeds &nbsp; Schedule : &nbsp;2026 / 2027 Regular Season</td></tr></table>
+    <table><tr><td>Num</td><td>Date</td><td>Time</td><td>Location</td><td>Home</td><td>H Score</td><td>V Score</td><td>Visitor</td></tr>
+    ${hlsRow(1, 'Sun-Sep 20', '8:00 am', 'Susan Fennell Rink 3', 'Leafs', '9', '6', 'Hawks', 'showgame.php?id=3299&did=14&sid=61')}
+    ${hlsRow(25, 'Sun-Nov 15', '9:20 am', 'Susan Fennell Rink 3', 'Whalers', '', '', 'Habs')}
+    ${hlsRow(43, 'Sun-Jan 03', '10:40 am', 'Susan Fennell Rink 3', 'Hawks', '', '', 'Bruins')}
+    ${hlsRow(50, 'Sun-Jan 10', '8:00 am', 'Earnscliffe Rink 1', 'Leafs', '', '', 'Habs')}</table>`;
+  const site = { id: 'mmeds', name: 'McLaughlin Meds Hockey League', url: 'https://x.test/?go=schedule&did=14&sid=61' };
+  const slots = parseHockeyLeagueStats(html, site);
+  assert.equal(slots.length, 3); // Earnscliffe skipped
+  assert.deepEqual(slots.map((s) => s.date), ['2026-09-20', '2026-11-15', '2027-01-03']); // Sep-Dec: 2026, Jan: 2027
+  assert.equal(slots[0].start, '08:00');
+  assert.equal(slots[0].pad, 3);
+  assert.equal(slots[0].kind, 'game');
+  assert.equal(slots[0].title, 'Leafs vs Hawks');
+  assert.equal(slots[0].detail, 'Game 1 · Final 9–6');
+  assert.equal(slots[0].url, 'https://x.test/showgame.php?id=3299&did=14&sid=61');
+  assert.equal(slots[1].detail, 'Game 25'); // unplayed: no result
+  assert.equal(slots[1].url, site.url);
+  assert.throws(() => parseHockeyLeagueStats('<table><tr><td>nothing</td></tr></table>', site), /season/);
 });

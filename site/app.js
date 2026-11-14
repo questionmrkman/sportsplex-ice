@@ -21,7 +21,7 @@ const KIND_SINGULAR = {
   game: 'Game', tournament: 'Tournament game', practice: 'Practice', lesson: 'Skating lesson', public: 'Public skate', shinny: 'Shinny', figure: 'Figure skating',
   stick: 'Stick & puck', program: 'Program', event: 'Event', unused: 'Unused ice',
 };
-const SHORT = { capitals: 'Capitals', bhl: 'Brampton Hockey', canadettes: 'Canadettes', silverstick: 'Silver Stick', lessons: 'Learn to Skate', city: 'City of Brampton' };
+const SHORT = { capitals: 'Capitals', bhl: 'Brampton Hockey', canadettes: 'Canadettes', silverstick: 'Silver Stick', mmeds: 'McLaughlin Meds', lessons: 'Learn to Skate', city: 'City of Brampton' };
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -146,7 +146,8 @@ function primary(slot) {
   return slot.title;
 }
 function secondary(slot) {
-  if (slot.kind === 'game') return slot.title; // "vs Opponent"
+  // club games: team is the headline and the title is "vs Opponent"; league games have no team, so show game no./result instead
+  if (slot.kind === 'game') return slot.team ? slot.title : slot.detail || '';
   if (slot.kind === 'tournament' || slot.kind === 'lesson') return slot.detail || ''; // division/pool or session · status
   if (slot.kind === 'practice') return 'Practice';
   if (slot.kind === 'unused') return [slot.team, slot.org].filter(Boolean).join(' · ');
@@ -344,7 +345,7 @@ function openDetail(it) {
     slot.opponent && ['Opponent', slot.opponent],
     slot.price && ['Price', slot.price],
     slot.spots && ['Availability', slot.spots],
-    slot.detail && !['public', 'shinny', 'tournament', 'lesson'].includes(slot.kind) && ['Notes', slot.detail],
+    slot.detail && slot.detail !== secondary(slot) && !['public', 'shinny', 'tournament', 'lesson'].includes(slot.kind) && ['Notes', slot.detail],
     ['Source', slot.org],
   ].filter(Boolean);
   $('#detailBody').replaceChildren(
