@@ -21,7 +21,7 @@ const KIND_SINGULAR = {
   game: 'Game', tournament: 'Tournament game', practice: 'Practice', lesson: 'Skating lesson', public: 'Public skate', shinny: 'Shinny', figure: 'Figure skating',
   stick: 'Stick & puck', program: 'Program', event: 'Event', unused: 'Unused ice',
 };
-const SHORT = { capitals: 'Capitals', bhl: 'Brampton Hockey', canadettes: 'Canadettes', silverstick: 'Silver Stick', mmeds: 'McLaughlin Meds', lessons: 'Learn to Skate', city: 'City of Brampton' };
+const SHORT = { capitals: 'Capitals', bhl: 'Brampton Hockey', canadettes: 'Canadettes', silverstick: 'Silver Stick', mmeds: 'McLaughlin Meds', tgif: 'TGIF', lessons: 'Learn to Skate', city: 'City of Brampton' };
 
 const $ = (sel) => document.querySelector(sel);
 

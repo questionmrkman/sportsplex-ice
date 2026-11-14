@@ -19,7 +19,9 @@ export const SOURCES = [
   { id: 'bhl', name: 'Brampton Hockey', type: 'team', url: 'https://bramptonhockey.com/Calendar/' },
   { id: 'canadettes', name: 'Brampton Canadettes', type: 'team', url: 'https://bramptoncanadettes.com/Calendar/' },
   { id: 'silverstick', name: 'Silver Stick Tournament', type: 'tournament', url: 'https://silverstick.org/Tournaments/31575/Schedule/' },
-  { id: 'mmeds', name: 'McLaughlin Meds Hockey League', type: 'hls', url: 'https://www.mclaughlinmedshockey.hockeyleaguestats.com/?go=schedule&did=14&sid=61' },
+  // HockeyLeagueStats leagues. gameMinutes is the drawn length (end times aren't published); games start every 80 / 60 min.
+  { id: 'mmeds', name: 'McLaughlin Meds Hockey League', type: 'hls', gameMinutes: 70, url: 'https://www.mclaughlinmedshockey.hockeyleaguestats.com/?go=schedule&did=14&sid=61' },
+  { id: 'tgif', name: "TGIF Men's Hockey", type: 'hls', gameMinutes: 60, url: 'https://www.hockeyleaguestats.com/tgif/?go=schedule&did=13&sid=48' },
   {
     id: 'city',
     name: 'City of Brampton (Public)',

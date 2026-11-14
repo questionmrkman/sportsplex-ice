@@ -172,3 +172,19 @@ test('parseHockeyLeagueStats: year from the season heading, results, Fennell-onl
   assert.equal(slots[1].url, site.url);
   assert.throws(() => parseHockeyLeagueStats('<table><tr><td>nothing</td></tr></table>', site), /season/);
 });
+
+test('parseHockeyLeagueStats: "2026/27" headings, "7:00pm" times and the South Fletchers venue name', () => {
+  const html = `<table><tr><td>C Schedule : 2026/27 TGIF Mens Hockey</td></tr></table>
+    <table>${hlsRow(1, 'Fri-Oct 09', '7:00pm', 'South Fletchers Sportplex', 'Wolves', '0', '6', 'Here4Beer', 'showgame.php?id=2692&did=13&sid=48')}
+    ${hlsRow(2, 'Fri-Jan 08', '9:00pm', 'South Fletchers Sportplex', 'Dragons', '', '', 'City Front')}
+    ${hlsRow(3, 'Fri-Oct 16', '7:00pm', 'Terry Miller', 'Chiefs', '', '', 'Tailgators')}</table>`;
+  const site = { id: 'tgif', name: "TGIF Men's Hockey", url: 'https://x.test/tgif/?go=schedule', gameMinutes: 60 };
+  const slots = parseHockeyLeagueStats(html, site);
+  assert.equal(slots.length, 2); // Terry Miller skipped
+  assert.deepEqual(slots.map((s) => s.date), ['2026-10-09', '2027-01-08']);
+  assert.equal(slots[0].start, '19:00');
+  assert.equal(slots[0].end, '20:00'); // site.gameMinutes
+  assert.equal(slots[0].pad, null); // the venue name has no pad number
+  assert.equal(slots[1].start, '21:00');
+  assert.ok(isFennell("South Fletcher's Sportsplex"));
+});

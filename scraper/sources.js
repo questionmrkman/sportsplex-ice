@@ -30,7 +30,8 @@ export function addMinutes(hhmm, mins) {
 
 /** True when a venue string refers to Susan Fennell Sportsplex. */
 export function isFennell(location) {
-  return /fennell|\bSF\b/i.test(location || '');
+  // "South Fletcher's" is the former name of Susan Fennell Sportsplex (some leagues still use it).
+  return /fennell|south\s+fletcher|\bSF\b/i.test(location || '');
 }
 
 /** "Susan Fennell (Pad 2)", "... - Rink 4", "SF Arena Ice (1)" -> pad number */
@@ -286,7 +287,7 @@ export function parsePerfectMindCourse(c, site, calendar) {
 // HockeyLeagueStats league schedules (e.g. McLaughlin Meds Hockey League)
 // ---------------------------------------------------------------------------
 
-const HLS_GAME_MINUTES = 70; // games start every 80 min; end times aren't published
+const HLS_DEFAULT_GAME_MINUTES = 70; // end times aren't published; a source can override with `gameMinutes`
 
 /**
  * Rows: Num | "Sun-Sep 20" | "8:00 am" | Location | Home | H score | V score | Visitor.
@@ -295,9 +296,11 @@ const HLS_GAME_MINUTES = 70; // games start every 80 min; end times aren't publi
  */
 export function parseHockeyLeagueStats(html, site) {
   const $ = cheerio.load(html);
-  const heading = /Schedule\s*:[^0-9]*(\d{4})\s*\/\s*(\d{4})/.exec($.root().text().replace(/\s+/g, ' '));
+  // "2026 / 2027" or "2026/27"
+  const heading = /Schedule\s*:[^0-9]*(\d{4})\s*\/\s*(\d{2,4})/.exec($.root().text().replace(/\s+/g, ' '));
   if (!heading) throw new Error('HockeyLeagueStats: could not find the season in the schedule heading');
-  const [startYear, endYear] = [Number(heading[1]), Number(heading[2])];
+  const startYear = Number(heading[1]);
+  const endYear = heading[2].length === 2 ? Math.floor(startYear / 100) * 100 + Number(heading[2]) : Number(heading[2]);
 
   const slots = [];
   $('tr').each((_, tr) => {
@@ -316,7 +319,7 @@ export function parseHockeyLeagueStats(html, site) {
     slots.push({
       date: `${year}-${pad2(month)}-${pad2(d[2])}`,
       start,
-      end: addMinutes(start, HLS_GAME_MINUTES),
+      end: addMinutes(start, site.gameMinutes ?? HLS_DEFAULT_GAME_MINUTES),
       endEstimated: true,
       pad: padFrom(location),
       source: site.id,
