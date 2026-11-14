@@ -14,14 +14,18 @@ const KINDS = {
   stick: 'Stick & puck',
   program: 'Other programs',
   event: 'Events',
+  booking: 'Ice bookings',
+  hold: 'Holds',
+  maintenance: 'Maintenance',
   unused: 'Unused ice',
 };
 const KIND_VAR = (k) => `var(--${k}-fg)`;
 const KIND_SINGULAR = {
   game: 'Game', tournament: 'Tournament game', practice: 'Practice', lesson: 'Skating lesson', public: 'Public skate', shinny: 'Shinny', figure: 'Figure skating',
   stick: 'Stick & puck', program: 'Program', event: 'Event', unused: 'Unused ice',
+  booking: 'Ice booking', hold: 'Hold', maintenance: 'Ice maintenance',
 };
-const SHORT = { capitals: 'Capitals', bhl: 'Brampton Hockey', canadettes: 'Canadettes', silverstick: 'Silver Stick', mmeds: 'McLaughlin Meds', tgif: 'TGIF', icohl: 'ICOHL', lessons: 'Learn to Skate', city: 'City of Brampton' };
+const SHORT = { capitals: 'Capitals', bhl: 'Brampton Hockey', canadettes: 'Canadettes', silverstick: 'Silver Stick', mmeds: 'McLaughlin Meds', tgif: 'TGIF', icohl: 'ICOHL', lessons: 'Learn to Skate', city: 'City of Brampton', facility: 'Facility schedule' };
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -148,7 +152,8 @@ function primary(slot) {
 function secondary(slot) {
   // club games: team is the headline and the title is "vs Opponent"; league games have no team, so show game no./result instead
   if (slot.kind === 'game') return slot.team ? slot.title : slot.detail || '';
-  if (slot.kind === 'tournament' || slot.kind === 'lesson') return slot.detail || ''; // division/pool or session · status
+  // division/pool, session · status, or the facility's booking note
+  if (['tournament', 'lesson', 'booking', 'hold', 'maintenance'].includes(slot.kind)) return slot.detail || '';
   if (slot.kind === 'practice') return 'Practice';
   if (slot.kind === 'unused') return [slot.team, slot.org].filter(Boolean).join(' · ');
   return slot.spots || slot.price || '';
@@ -354,7 +359,8 @@ function openDetail(it) {
       h('h3', { id: 'detailTitle' }, primary(slot)),
       secondary(slot) && h('div', { class: 'ag-sub' }, secondary(slot)),
       h('dl', {}, rows.flatMap(([k, v]) => [h('dt', {}, k), h('dd', {}, v)])),
-      h('a', { class: 'btn', href: slot.url, target: '_blank', rel: 'noopener' }, `Open on ${SHORT[slot.source] || slot.org} ↗`)));
+      // facility-schedule rows come from a printout, so there's no page to link to
+      slot.url && h('a', { class: 'btn', href: slot.url, target: '_blank', rel: 'noopener' }, `Open on ${SHORT[slot.source] || slot.org} ↗`)));
   $('#detail').showModal();
 }
 
@@ -408,8 +414,9 @@ function renderMeta() {
   for (const s of DATA.slots) if (!last[s.source] || s.date > last[s.source]) last[s.source] = s.date;
   $('#sources').replaceChildren(...DATA.sources.map((s) => h('li', {},
     h('span', { class: 'st' }, s.ok ? '✓' : '✗'),
-    h('a', { href: s.url, target: '_blank', rel: 'noopener' }, s.name),
-    s.ok ? ` — ${s.count} slots${last[s.id] ? ` through ${shortDate(last[s.id])}` : ''}` : ` — failed (${s.error})`)));
+    s.url ? h('a', { href: s.url, target: '_blank', rel: 'noopener' }, s.name) : s.name,
+    s.ok ? ` — ${s.count} slots${last[s.id] ? ` through ${shortDate(last[s.id])}` : ''}` : ` — failed (${s.error})`,
+    s.ok && s.note && !s.url ? h('div', { class: 'src-note' }, s.note) : null)));
 }
 
 function render() {

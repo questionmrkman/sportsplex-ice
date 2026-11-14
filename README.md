@@ -1,6 +1,6 @@
 # Fennell Ice Schedule
 
-Tracks the ice at **Susan Fennell Sportsplex** (Pads 1–4) by combining nine sources:
+Tracks the ice at **Susan Fennell Sportsplex** (Pads 1–4) by combining ten sources:
 
 | Source | What it adds | Reach |
 | --- | --- | --- |
@@ -9,6 +9,7 @@ Tracks the ice at **Susan Fennell Sportsplex** (Pads 1–4) by combining nine so
 | bramptoncanadettes.com | Canadettes games & practices | ~5 months |
 | silverstick.org (tournament 31575) | Silver Stick games on Pads 1–3 (Nov 20–22, 2026) | tournament dates |
 | mclaughlinmedshockey.hockeyleaguestats.com | McLaughlin Meds Hockey League games (Pad 3, Sundays) | whole season |
+| Facility schedule (printouts) | The facility's own printed schedule, transcribed by hand: the source of truth for ice times | Nov 16-19 so far (Pads 2-4) |
 | icohl.com | ICOHL games (Pad 3, Wednesdays) | whole season |
 | hockeyleaguestats.com/tgif | TGIF Men's Hockey games (Fridays; the site doesn't say which pad) | whole season |
 | City of Brampton Learn to Skate (PerfectMind) | Skating lessons (3–6, 6–14, 14+, private): every session of each course | current course terms |
@@ -32,6 +33,19 @@ Options: `PORT=8080 REFRESH_MINUTES=15 npm start`. One-off scrape: `npm run scra
 - `site/` — static page (no build step) that reads that JSON. Filters and the selected date live in the URL, so
   views can be shared.
 - `server.js` — tiny static server that also re-runs the scraper on a timer.
+
+## Facility schedule (hand-transcribed printouts)
+
+`scraper/data/facility-schedule.json` holds rows copied from photos of the facility's own "Facility Schedule" (one page
+per pad: pad, date, time, event name, service, exactly as printed). It's treated as the source of truth for ice times:
+
+- A row whose group already has its own source listing something at that pad and time (Capitals "CRC", Brampton Hockey
+  "BHI", Canadettes, Inner City Oldtimers = ICOHL, City drop-ins, Learn to Skate lessons) is **dropped**, so the existing
+  slots keep their format. The mapping lives in `GROUPS` in `scraper/facility.js`.
+- Every other row (bookings by groups with no source, internal program holds, weekly ice maintenance) is **added** as
+  "Ice bookings", "Holds" or "Maintenance".
+- To add more days or pads: append rows to `entries` (24h times) and push. Photographed so far: Pad 2 and Pad 3 for
+  Nov 16-19, Pad 4 for Nov 16-17 (that page was cut off). Pad 1 hasn't been photographed.
 
 ## Notes
 

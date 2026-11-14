@@ -1,13 +1,14 @@
 // Scrapes all sources and writes site/data/schedule.json.
 // Usage: node scraper/scrape.js [--months=8] [--days=75]
 import { createHash } from 'node:crypto';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as cheerio from 'cheerio';
 import {
   UA, parseTeamCalendar, parsePerfectMindClass, parsePerfectMindCourse, parseHockeyLeagueStats, parseIcohl, parseTournamentDay, tournamentDate, tournamentDayLinks,
 } from './sources.js';
+import { facilitySlots } from './facility.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const OUT_FILE = path.join(ROOT, 'site', 'data', 'schedule.json');
@@ -21,6 +22,9 @@ export const SOURCES = [
   { id: 'silverstick', name: 'Silver Stick Tournament', type: 'tournament', url: 'https://silverstick.org/Tournaments/31575/Schedule/' },
   // HockeyLeagueStats leagues. gameMinutes is the drawn length (end times aren't published); games start every 80 / 60 min.
   { id: 'mmeds', name: 'McLaughlin Meds Hockey League', type: 'hls', gameMinutes: 70, url: 'https://www.mclaughlinmedshockey.hockeyleaguestats.com/?go=schedule&did=14&sid=61' },
+  // The facility's own printed schedule, transcribed by hand (scraper/data/facility-schedule.json). Source of truth for
+  // ice times; rows already covered by their group's own source are dropped. Runs after the others.
+  { id: 'facility', name: 'Susan Fennell facility schedule', type: 'manual', url: null },
   { id: 'icohl', name: 'ICOHL', type: 'icohl', gameMinutes: 60, url: 'https://icohl.com/202627/schedule.html' },
   { id: 'tgif', name: "TGIF Men's Hockey", type: 'hls', gameMinutes: 60, url: 'https://www.hockeyleaguestats.com/tgif/?go=schedule&did=13&sid=48' },
   {
@@ -240,7 +244,7 @@ export async function runScrape({ months = 8, days = 75, write = true } = {}) {
   const all = [];
 
   await Promise.all(
-    SOURCES.map(async (site) => {
+    SOURCES.filter((s) => s.type !== 'manual').map(async (site) => {
       const t0 = Date.now();
       try {
         const { slots, note } =
@@ -262,6 +266,24 @@ export async function runScrape({ months = 8, days = 75, write = true } = {}) {
       }
     }),
   );
+
+  // Manual sources need the other sources' slots (to avoid duplicating them), so they go last.
+  for (const site of SOURCES.filter((s) => s.type === 'manual')) {
+    try {
+      const file = path.join(ROOT, 'scraper', 'data', 'facility-schedule.json');
+      const { entries } = JSON.parse(await readFile(file, 'utf8'));
+      const slots = facilitySlots(entries, all, site);
+      all.push(...slots);
+      const dates = slots.map((s) => s.date).sort();
+      status.push({
+        id: site.id, name: site.name, url: site.url, ok: true, count: slots.length,
+        note: `${entries.length} printed rows; ${entries.length - slots.length} already listed by their own sources`
+          + (dates.length ? `; extra ice ${dates[0]} to ${dates.at(-1)}` : ''),
+      });
+    } catch (err) {
+      status.push({ id: site.id, name: site.name, url: site.url, ok: false, error: String(err.message || err), count: 0 });
+    }
+  }
 
   const result = {
     facility: 'Susan Fennell Sportsplex',
