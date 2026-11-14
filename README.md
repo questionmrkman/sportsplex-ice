@@ -1,6 +1,6 @@
 # Fennell Ice Schedule
 
-Tracks the ice at **Susan Fennell Sportsplex** (Pads 1–4) by combining eight sources:
+Tracks the ice at **Susan Fennell Sportsplex** (Pads 1–4) by combining nine sources:
 
 | Source | What it adds | Reach |
 | --- | --- | --- |
@@ -9,6 +9,7 @@ Tracks the ice at **Susan Fennell Sportsplex** (Pads 1–4) by combining eight s
 | bramptoncanadettes.com | Canadettes games & practices | ~5 months |
 | silverstick.org (tournament 31575) | Silver Stick games on Pads 1–3 (Nov 20–22, 2026) | tournament dates |
 | mclaughlinmedshockey.hockeyleaguestats.com | McLaughlin Meds Hockey League games (Pad 3, Sundays) | whole season |
+| icohl.com | ICOHL games (Pad 3, Wednesdays) | whole season |
 | hockeyleaguestats.com/tgif | TGIF Men's Hockey games (Fridays; the site doesn't say which pad) | whole season |
 | City of Brampton Learn to Skate (PerfectMind) | Skating lessons (3–6, 6–14, 14+, private): every session of each course | current course terms |
 | City of Brampton (PerfectMind) | Public skate, shinny, figure skating | ~2 weeks |
@@ -34,6 +35,8 @@ Options: `PORT=8080 REFRESH_MINUTES=15 npm start`. One-off scrape: `npm run scra
 
 ## Notes
 
+- The ICOHL page is one static table per season (its URL contains the season, `202627`). Dates have no year, so the year
+  comes from the page title; a new season means a new URL in `SOURCES`. Game-sheet links are only used once a game has scores.
 - The McLaughlin Meds league page needs a normal `Accept` header (it answers 406 to a bare request) and shows dates
   without a year; the year comes from the "2026 / 2027" season heading, so a new season means a new `sid` in the URL. The TGIF league lists its venue as "South Fletchers Sportplex" (the former name of
   Susan Fennell) with no pad number, so its games show under "Pad unknown".

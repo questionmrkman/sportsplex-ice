@@ -38,7 +38,8 @@ export function isFennell(location) {
 export function padFrom(location) {
   const m =
     /(?:pad|rink)\s*(\d)/i.exec(location || '') ||
-    /Arena Ice\s*\(\s*(\d)\s*\)/i.exec(location || '');
+    /Arena Ice\s*\(\s*(\d)\s*\)/i.exec(location || '') ||
+    /\bSF[-\s]*(\d)\b/i.exec(location || ''); // "SF-3"
   return m ? Number(m[1]) : null;
 }
 
@@ -332,6 +333,58 @@ export function parseHockeyLeagueStats(html, site) {
       price: null,
       spots: null,
       url: link ? new URL(link, site.url).href : site.url,
+      uid: `${site.id}-${num}`,
+    });
+  });
+  return slots;
+}
+
+// ---------------------------------------------------------------------------
+// ICOHL (icohl.com): one static schedule page per season
+// ---------------------------------------------------------------------------
+
+/**
+ * Rows: # | "07-Oct" | "7:00 PM" | rink ("SF-3") | Home | score | "-" | score | Visitors.
+ * Dates carry no year; it comes from the page title ("Schedule 2026-2027"): Aug-Dec are the
+ * first year, Jan-Jul the second. Scores are "-" until played.
+ */
+export function parseIcohl(html, site) {
+  const $ = cheerio.load(html);
+  const season = /(\d{4})\s*[-–/]\s*(\d{2,4})/.exec($('title').text());
+  if (!season) throw new Error('ICOHL: could not find the season in the page title');
+  const startYear = Number(season[1]);
+  const endYear = season[2].length === 2 ? Math.floor(startYear / 100) * 100 + Number(season[2]) : Number(season[2]);
+
+  const slots = [];
+  $('tr').each((_, tr) => {
+    const cells = $(tr).children('td').map((__, td) => $(td).text().replace(/\s+/g, ' ').trim()).get();
+    if (cells.length !== 9 || !/^\d+$/.test(cells[0])) return;
+    const [num, dateText, timeText, rink, home, homeScore, , visitorScore, visitor] = cells;
+    const d = /^(\d{1,2})-([A-Za-z]{3})$/.exec(dateText);
+    const month = d && MONTHS[d[2].toLowerCase()];
+    const start = to24h(timeText);
+    if (!month || !start || !isFennell(rink)) return;
+
+    const played = /^\d+$/.test(homeScore) && /^\d+$/.test(visitorScore);
+    const sheet = $(tr).find('a[href*="gamesheets"]').first().attr('href');
+
+    slots.push({
+      date: `${month >= 8 ? startYear : endYear}-${pad2(month)}-${pad2(d[1])}`,
+      start,
+      end: addMinutes(start, site.gameMinutes ?? 60),
+      endEstimated: true,
+      pad: padFrom(rink),
+      source: site.id,
+      org: site.name,
+      kind: 'game',
+      title: `${home} vs ${visitor}`,
+      team: null,
+      opponent: null,
+      detail: [`Game ${num}`, played && `Final ${homeScore}–${visitorScore}`].filter(Boolean).join(' · '),
+      price: null,
+      spots: null,
+      // the gamesheet image only exists once the game has been played
+      url: played && sheet ? new URL(sheet, site.url).href : site.url,
       uid: `${site.id}-${num}`,
     });
   });

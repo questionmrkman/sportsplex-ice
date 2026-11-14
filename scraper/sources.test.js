@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   to24h, padFrom, isFennell, parseTeamCalendar, parsePerfectMindClass,
-  parseTournamentDay, tournamentDate, tournamentDayLinks, parsePerfectMindCourse, torontoParts, parseHockeyLeagueStats,
+  parseTournamentDay, tournamentDate, tournamentDayLinks, parsePerfectMindCourse, torontoParts, parseHockeyLeagueStats, parseIcohl,
 } from './sources.js';
 
 const site = { id: 'capitals', name: 'Credit River Capitals', url: 'https://example.test/Calendar/' };
@@ -19,6 +19,7 @@ test('padFrom understands each site\'s naming', () => {
   assert.equal(padFrom('Susan Fennell (Pad 3)'), 3);
   assert.equal(padFrom('Susan Fennell Sportsplex - Rink 4'), 4);
   assert.equal(padFrom('SF Arena Ice (1) 0:00'), 1);
+  assert.equal(padFrom('SF-3'), 3);
   assert.equal(padFrom('Terry Miller'), null);
 });
 
@@ -187,4 +188,29 @@ test('parseHockeyLeagueStats: "2026/27" headings, "7:00pm" times and the South F
   assert.equal(slots[0].pad, null); // the venue name has no pad number
   assert.equal(slots[1].start, '21:00');
   assert.ok(isFennell("South Fletcher's Sportsplex"));
+});
+
+const icRow = (num, date, time, rink, home, hs, vs, visitor) =>
+  `<tr><td><a href="./gamesheets/${String(num).padStart(2, '0')}.jpg">${num}</a></td><td>${date}</td><td>${time}</td><td>${rink}</td><td>${home}</td><td>${hs}</td><td>-</td><td>${vs}</td><td>${visitor}</td></tr>`;
+
+test('parseIcohl: season from the title, SF-3 rink, scores and gamesheet links', () => {
+  const html = `<html><head><title>ICOHL - Schedule 2026-2027</title></head><body><table>
+    <tr><td>#</td><td>Date</td><td>Time</td><td>Rink</td><td>Home</td><td>G</td><td>-</td><td>G</td><td>Visitors</td></tr>
+    <tr><td>Regular Season 2026</td></tr>
+    ${icRow(1, '07-Oct', '7:00 PM', 'SF-3', 'Mavericks', '4', '3', 'Whalers')}
+    ${icRow(19, '18-Nov', '8:00 PM', 'SF-3', 'Knights', '-', '-', 'Pirates')}
+    ${icRow(75, '31-Mar', '9:00 PM', 'SF-3', 'Sabres', '-', '-', 'Pirates')}
+    ${icRow(76, '07-Apr', '9:00 PM', 'Earnscliffe-1', 'Sabres', '-', '-', 'Pirates')}</table></body></html>`;
+  const site = { id: 'icohl', name: 'ICOHL', url: 'https://icohl.com/202627/schedule.html', gameMinutes: 60 };
+  const slots = parseIcohl(html, site);
+  assert.equal(slots.length, 3); // other rink skipped
+  assert.deepEqual(slots.map((s) => s.date), ['2026-10-07', '2026-11-18', '2027-03-31']); // Oct-Dec 2026, Mar 2027
+  assert.equal(slots[0].pad, 3);
+  assert.equal(slots[0].end, '20:00');
+  assert.equal(slots[0].title, 'Mavericks vs Whalers');
+  assert.equal(slots[0].detail, 'Game 1 · Final 4–3');
+  assert.equal(slots[0].url, 'https://icohl.com/202627/gamesheets/01.jpg'); // played: gamesheet
+  assert.equal(slots[1].detail, 'Game 19');
+  assert.equal(slots[1].url, site.url); // unplayed: schedule page
+  assert.throws(() => parseIcohl('<html><title>nothing</title></html>', site), /season/);
 });

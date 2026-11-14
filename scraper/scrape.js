@@ -6,7 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as cheerio from 'cheerio';
 import {
-  UA, parseTeamCalendar, parsePerfectMindClass, parsePerfectMindCourse, parseHockeyLeagueStats, parseTournamentDay, tournamentDate, tournamentDayLinks,
+  UA, parseTeamCalendar, parsePerfectMindClass, parsePerfectMindCourse, parseHockeyLeagueStats, parseIcohl, parseTournamentDay, tournamentDate, tournamentDayLinks,
 } from './sources.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -21,6 +21,7 @@ export const SOURCES = [
   { id: 'silverstick', name: 'Silver Stick Tournament', type: 'tournament', url: 'https://silverstick.org/Tournaments/31575/Schedule/' },
   // HockeyLeagueStats leagues. gameMinutes is the drawn length (end times aren't published); games start every 80 / 60 min.
   { id: 'mmeds', name: 'McLaughlin Meds Hockey League', type: 'hls', gameMinutes: 70, url: 'https://www.mclaughlinmedshockey.hockeyleaguestats.com/?go=schedule&did=14&sid=61' },
+  { id: 'icohl', name: 'ICOHL', type: 'icohl', gameMinutes: 60, url: 'https://icohl.com/202627/schedule.html' },
   { id: 'tgif', name: "TGIF Men's Hockey", type: 'hls', gameMinutes: 60, url: 'https://www.hockeyleaguestats.com/tgif/?go=schedule&did=13&sid=48' },
   {
     id: 'city',
@@ -179,6 +180,13 @@ async function scrapeHls(site) {
   return parseHockeyLeagueStats(html, site);
 }
 
+// -- ICOHL (single static schedule page) --------------------------------------
+
+async function scrapeIcohl(site) {
+  const res = await getText(site.url, { headers: { Accept: 'text/html,application/xhtml+xml;q=0.9,*/*;q=0.8' } });
+  return parseIcohl(await res.text(), site);
+}
+
 // -- PerfectMind courses (Learn to Skate series) ----------------------------
 
 async function scrapeLessons(site) {
@@ -240,6 +248,8 @@ export async function runScrape({ months = 8, days = 75, write = true } = {}) {
             ? await scrapeTeamSite(site, { months })
             : site.type === 'tournament'
               ? { slots: await scrapeTournament(site), note: null }
+              : site.type === 'icohl'
+                ? { slots: await scrapeIcohl(site), note: null }
               : site.type === 'hls'
                 ? { slots: await scrapeHls(site), note: null }
                 : site.type === 'perfectmind-courses'
