@@ -39,7 +39,8 @@ export function padFrom(location) {
   const m =
     /(?:pad|rink)\s*(\d)/i.exec(location || '') ||
     /Arena Ice\s*\(\s*(\d)\s*\)/i.exec(location || '') ||
-    /\bSF[-\s]*(\d)\b/i.exec(location || ''); // "SF-3"
+    /\bSF[-\s]*(\d)\b/i.exec(location || '') || // "SF-3"
+    /Fennell\s*-\s*(\d)\b/i.exec(location || ''); // "Susan Fennell - 2"
   return m ? Number(m[1]) : null;
 }
 
@@ -388,5 +389,100 @@ export function parseIcohl(html, site) {
       uid: `${site.id}-${num}`,
     });
   });
+  return slots;
+}
+
+// ---------------------------------------------------------------------------
+// 2 Nations tournament: a published Google Sheet ("Master Schedule" tab, as CSV)
+// ---------------------------------------------------------------------------
+
+/** Minimal RFC 4180 CSV reader (quoted fields, escaped quotes, CRLF). */
+export function parseCsv(text) {
+  const rows = [];
+  let row = [], field = '', quoted = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (quoted) {
+      if (c === '"' && text[i + 1] === '"') { field += '"'; i++; }
+      else if (c === '"') quoted = false;
+      else field += c;
+    } else if (c === '"') quoted = true;
+    else if (c === ',') { row.push(field); field = ''; }
+    else if (c === '\n' || c === '\r') {
+      if (c === '\r' && text[i + 1] === '\n') i++;
+      row.push(field); rows.push(row); row = []; field = '';
+    } else field += c;
+  }
+  if (field !== '' || row.length) { row.push(field); rows.push(row); }
+  return rows;
+}
+
+const WEEKDAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+
+/** The sheet's dates ("Friday", "Dec-4") have no year: pick the nearby year whose weekday matches. */
+function yearForDate(month, day, weekday, today) {
+  const target = WEEKDAYS.indexOf(weekday.toLowerCase());
+  const base = today.getUTCFullYear();
+  const match = [base - 1, base, base + 1]
+    .filter((y) => new Date(Date.UTC(y, month - 1, day)).getUTCDay() === target)
+    .sort((a, b) => Math.abs(Date.UTC(a, month - 1, day) - today) - Math.abs(Date.UTC(b, month - 1, day) - today))[0];
+  if (!match) throw new Error(`2 Nations: no year makes ${weekday} ${month}/${day} a ${weekday}`);
+  return match;
+}
+
+/**
+ * Layout: each day is a block - a row with the weekday and "Dec-4" repeated per rink, a header row naming
+ * each rink (columns of 6: time, Game #, Game ID, Home, Away, blank), then one row per time slot.
+ * Only the "Susan Fennell - N" rinks are kept.
+ */
+export function parseTwoNations(csv, site, today = new Date()) {
+  const rows = parseCsv(csv);
+  const slots = [];
+  let date = null;
+  let groups = [];
+
+  for (const row of rows) {
+    // day row: "Friday" ... "Dec-4"
+    const dayCol = row.findIndex((c, i) => WEEKDAYS.includes((c || '').trim().toLowerCase()) && /^[A-Za-z]{3}-\d{1,2}$/.test((row[i + 2] || '').trim()));
+    if (dayCol !== -1) {
+      const [mon, d] = row[dayCol + 2].trim().split('-');
+      const month = MONTHS[mon.toLowerCase()];
+      if (!month) throw new Error(`2 Nations: unknown month "${mon}"`);
+      date = `${yearForDate(month, Number(d), row[dayCol].trim(), today)}-${pad2(month)}-${pad2(d)}`;
+      groups = [];
+      continue;
+    }
+    // header row: a rink name above each "Game #"
+    if (row.some((c) => (c || '').trim() === 'Game #')) {
+      groups = row.map((c, col) => ({ col, name: (c || '').trim() })).filter((g) => g.name && (row[g.col + 1] || '').trim() === 'Game #');
+      continue;
+    }
+    if (!date || !groups.length) continue;
+
+    for (const g of groups) {
+      if (!isFennell(g.name)) continue;
+      const [time, num, code, home, away] = [0, 1, 2, 3, 4].map((o) => (row[g.col + o] || '').trim());
+      const start = to24h(time);
+      if (!start || !num) continue;
+      slots.push({
+        date,
+        start,
+        end: addMinutes(start, site.gameMinutes ?? 80),
+        endEstimated: true,
+        pad: padFrom(g.name),
+        source: site.id,
+        org: site.name,
+        kind: 'tournament',
+        title: home && away ? `${home} vs ${away}` : home || away || `Game ${num}`,
+        team: null,
+        opponent: null,
+        detail: [`Game ${num}`, code].filter(Boolean).join(' · '),
+        price: null,
+        spots: null,
+        url: site.url,
+        uid: `${site.id}-${num}`,
+      });
+    }
+  }
   return slots;
 }

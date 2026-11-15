@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   to24h, padFrom, isFennell, parseTeamCalendar, parsePerfectMindClass,
-  parseTournamentDay, tournamentDate, tournamentDayLinks, parsePerfectMindCourse, torontoParts, parseHockeyLeagueStats, parseIcohl,
+  parseTournamentDay, tournamentDate, tournamentDayLinks, parsePerfectMindCourse, torontoParts, parseHockeyLeagueStats, parseIcohl, parseCsv, parseTwoNations,
 } from './sources.js';
 
 const site = { id: 'capitals', name: 'Credit River Capitals', url: 'https://example.test/Calendar/' };
@@ -20,6 +20,7 @@ test('padFrom understands each site\'s naming', () => {
   assert.equal(padFrom('Susan Fennell Sportsplex - Rink 4'), 4);
   assert.equal(padFrom('SF Arena Ice (1) 0:00'), 1);
   assert.equal(padFrom('SF-3'), 3);
+  assert.equal(padFrom('Susan Fennell - 2'), 2);
   assert.equal(padFrom('Terry Miller'), null);
 });
 
@@ -213,4 +214,36 @@ test('parseIcohl: season from the title, SF-3 rink, scores and gamesheet links',
   assert.equal(slots[1].detail, 'Game 19');
   assert.equal(slots[1].url, site.url); // unplayed: schedule page
   assert.throws(() => parseIcohl('<html><title>nothing</title></html>', site), /season/);
+});
+
+test('parseCsv handles quotes, escaped quotes, commas and CRLF', () => {
+  assert.deepEqual(parseCsv('a,"b,c",d\r\n"e ""q"" f",,g\n'), [['a', 'b,c', 'd'], ['e "q" f', '', 'g']]);
+});
+
+test('parseTwoNations: keeps only the Susan Fennell rinks, year from the weekday', () => {
+  // 6 columns per rink: time, Game #, Game ID, Home, Away, blank
+  const csv = [
+    ',Friday,,Dec-4,,,,Friday,,Dec-4,,,,Friday,,Dec-4,,',
+    ',Susan Fennell - 1,Game #,Game ID,Home,Away,,Susan Fennell - 2,Game #,Game ID,Home,Away,,Century - 1,Game #,Game ID,Home,Away',
+    ',,,,,,,,,,,,,,,,,',
+    ',8:00 AM,5,U15 (E) - 1.03,Stoney Creek Sabres,Whitby Wolves,,8:15 AM,11,U15 (E) - 1.02,Scarborough Sharks,"Sarnia, Jr Lady Sting",,8:00 AM,3,U18 (A) - 1.01,Not Here,Nor Here',
+    ',9:30 AM,17,U15 - CON 6,Pool C Rank 4,Pool D Rank 1,,,,,,,,,,,,',
+    ',,,,,,,,,,,,,,,,,',
+    ',Sunday,,Dec-6,,',
+    ',Susan Fennell - 1,Game #,Game ID,Home,Away',
+    ',8:00 AM,218,U18 - QF 1,Winner R16.1,Winner R16.2',
+  ].join('\n');
+  const site = { id: 'twonations', name: '2 Nations', url: 'https://x.test/pub', gameMinutes: 80 };
+  const slots = parseTwoNations(csv, site, new Date('2026-11-15T12:00:00Z'));
+  assert.equal(slots.length, 4); // Century rink skipped
+  assert.deepEqual(slots.map((s) => [s.date, s.start, s.pad]), [
+    ['2026-12-04', '08:00', 1], ['2026-12-04', '08:15', 2], ['2026-12-04', '09:30', 1], ['2026-12-06', '08:00', 1],
+  ]);
+  assert.equal(slots[0].title, 'Stoney Creek Sabres vs Whitby Wolves');
+  assert.equal(slots[0].detail, 'Game 5 · U15 (E) - 1.03');
+  assert.equal(slots[0].end, '09:20'); // site.gameMinutes
+  assert.equal(slots[0].kind, 'tournament');
+  assert.equal(slots[1].title, 'Scarborough Sharks vs Sarnia, Jr Lady Sting');
+  // a weekday that never matches a nearby year is an error, not a guess
+  assert.throws(() => parseTwoNations(csv.replace(/Friday/g, 'Tuesday'), site, new Date('2026-11-15T12:00:00Z')), /no year/);
 });

@@ -6,7 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as cheerio from 'cheerio';
 import {
-  UA, parseTeamCalendar, parsePerfectMindClass, parsePerfectMindCourse, parseHockeyLeagueStats, parseIcohl, parseTournamentDay, tournamentDate, tournamentDayLinks,
+  UA, parseTeamCalendar, parsePerfectMindClass, parsePerfectMindCourse, parseHockeyLeagueStats, parseIcohl, parseTwoNations, parseTournamentDay, tournamentDate, tournamentDayLinks,
 } from './sources.js';
 import { facilitySlots } from './facility.js';
 
@@ -25,6 +25,15 @@ export const SOURCES = [
   // The facility's own printed schedule, transcribed by hand (scraper/data/facility-schedule.json). Source of truth for
   // ice times; rows already covered by their group's own source are dropped. Runs after the others.
   { id: 'facility', name: 'Susan Fennell facility schedule', type: 'manual', url: null },
+  // 2 Nations: a published Google Sheet. url = the page people see; csvUrl = its "Master Schedule" tab as CSV.
+  {
+    id: 'twonations',
+    name: '2 Nations',
+    type: 'twonations',
+    gameMinutes: 80, // games start every 90 min; end times aren't published
+    url: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vT_GXcK-5N7i-DG1fpibZjUNPuPhohkgn8Ue5g8XhQS_ZCqbPr0Wozy67IGNxn3JWSHmB7KOlhejvbu/pubhtml',
+    csvUrl: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vT_GXcK-5N7i-DG1fpibZjUNPuPhohkgn8Ue5g8XhQS_ZCqbPr0Wozy67IGNxn3JWSHmB7KOlhejvbu/pub?gid=1552455605&single=true&output=csv',
+  },
   { id: 'icohl', name: 'ICOHL', type: 'icohl', gameMinutes: 60, url: 'https://icohl.com/202627/schedule.html' },
   { id: 'tgif', name: "TGIF Men's Hockey", type: 'hls', gameMinutes: 60, url: 'https://www.hockeyleaguestats.com/tgif/?go=schedule&did=13&sid=48' },
   {
@@ -184,6 +193,13 @@ async function scrapeHls(site) {
   return parseHockeyLeagueStats(html, site);
 }
 
+// -- 2 Nations (published Google Sheet, CSV) -----------------------------------
+
+async function scrapeTwoNations(site) {
+  const res = await getText(site.csvUrl, { headers: { Accept: 'text/csv,text/plain;q=0.9,*/*;q=0.8' } });
+  return parseTwoNations(await res.text(), site);
+}
+
 // -- ICOHL (single static schedule page) --------------------------------------
 
 async function scrapeIcohl(site) {
@@ -252,6 +268,8 @@ export async function runScrape({ months = 8, days = 75, write = true } = {}) {
             ? await scrapeTeamSite(site, { months })
             : site.type === 'tournament'
               ? { slots: await scrapeTournament(site), note: null }
+              : site.type === 'twonations'
+                ? { slots: await scrapeTwoNations(site), note: null }
               : site.type === 'icohl'
                 ? { slots: await scrapeIcohl(site), note: null }
               : site.type === 'hls'

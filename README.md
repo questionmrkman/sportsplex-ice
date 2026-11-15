@@ -1,6 +1,6 @@
 # Fennell Ice Schedule
 
-Tracks the ice at **Susan Fennell Sportsplex** (Pads 1–4) by combining ten sources:
+Tracks the ice at **Susan Fennell Sportsplex** (Pads 1–4) by combining eleven sources:
 
 | Source | What it adds | Reach |
 | --- | --- | --- |
@@ -10,6 +10,7 @@ Tracks the ice at **Susan Fennell Sportsplex** (Pads 1–4) by combining ten sou
 | silverstick.org (tournament 31575) | Silver Stick games on Pads 1–3 (Nov 20–22, 2026) | tournament dates |
 | mclaughlinmedshockey.hockeyleaguestats.com | McLaughlin Meds Hockey League games (Pad 3, Sundays) | whole season |
 | Facility schedule (printouts) | The facility's own printed schedule, transcribed by hand: the source of truth for ice times | Nov 16-19 so far (Pads 2-4) |
+| 2 Nations (published Google Sheet) | 2 Nations tournament games on Pads 1-4 (Dec 4-6, 2026) | tournament dates |
 | icohl.com | ICOHL games (Pad 3, Wednesdays) | whole season |
 | hockeyleaguestats.com/tgif | TGIF Men's Hockey games (Fridays; the site doesn't say which pad) | whole season |
 | City of Brampton Learn to Skate (PerfectMind) | Skating lessons (3–6, 6–14, 14+, private): every session of each course | current course terms |
@@ -49,6 +50,8 @@ per pad: pad, date, time, event name, service, exactly as printed). It's treated
 
 ## Notes
 
+- 2 Nations is read from the sheet's "Master Schedule" tab as CSV (the gid is in `SOURCES`). The sheet has no year, so it's
+  taken from the weekday ("Friday, Dec-4" must be a Friday); the parser errors if no nearby year matches or the layout changes.
 - The ICOHL page is one static table per season (its URL contains the season, `202627`). Dates have no year, so the year
   comes from the page title; a new season means a new URL in `SOURCES`. Game-sheet links are only used once a game has scores.
 - The McLaughlin Meds league page needs a normal `Accept` header (it answers 406 to a bare request) and shows dates
