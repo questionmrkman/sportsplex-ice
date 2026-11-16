@@ -6,6 +6,7 @@ const PADS = [1, 2, 3, 4];
 const KINDS = {
   game: 'Games',
   tournament: 'Tournament',
+  league: 'Leagues',
   practice: 'Practices',
   lesson: 'Lessons',
   public: 'Public skate',
@@ -21,7 +22,7 @@ const KINDS = {
 };
 const KIND_VAR = (k) => `var(--${k}-fg)`;
 const KIND_SINGULAR = {
-  game: 'Game', tournament: 'Tournament game', practice: 'Practice', lesson: 'Skating lesson', public: 'Public skate', shinny: 'Shinny', figure: 'Figure skating',
+  game: 'Game', tournament: 'Tournament game', league: 'League game', practice: 'Practice', lesson: 'Skating lesson', public: 'Public skate', shinny: 'Shinny', figure: 'Figure skating',
   stick: 'Stick & puck', program: 'Program', event: 'Event', unused: 'Unused ice',
   booking: 'Ice booking', hold: 'Hold', maintenance: 'Ice maintenance',
 };
@@ -153,7 +154,7 @@ function secondary(slot) {
   // club games: team is the headline and the title is "vs Opponent"; league games have no team, so show game no./result instead
   if (slot.kind === 'game') return slot.team ? slot.title : slot.detail || '';
   // division/pool, session · status, or the facility's booking note
-  if (['tournament', 'lesson', 'booking', 'hold', 'maintenance'].includes(slot.kind)) return slot.detail || '';
+  if (['tournament', 'league', 'lesson', 'booking', 'hold', 'maintenance'].includes(slot.kind)) return slot.detail || '';
   if (slot.kind === 'practice') return 'Practice';
   if (slot.kind === 'unused') return [slot.team, slot.org].filter(Boolean).join(' · ');
   return slot.spots || slot.price || '';

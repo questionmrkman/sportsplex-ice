@@ -166,7 +166,7 @@ test('parseHockeyLeagueStats: year from the season heading, results, Fennell-onl
   assert.deepEqual(slots.map((s) => s.date), ['2026-09-20', '2026-11-15', '2027-01-03']); // Sep-Dec: 2026, Jan: 2027
   assert.equal(slots[0].start, '08:00');
   assert.equal(slots[0].pad, 3);
-  assert.equal(slots[0].kind, 'game');
+  assert.equal(slots[0].kind, 'league'); // league games are their own type, not club "Games"
   assert.equal(slots[0].title, 'Leafs vs Hawks');
   assert.equal(slots[0].detail, 'Game 1 · Final 9–6');
   assert.equal(slots[0].url, 'https://x.test/showgame.php?id=3299&did=14&sid=61');
@@ -187,6 +187,7 @@ test('parseHockeyLeagueStats: "2026/27" headings, "7:00pm" times and the South F
   assert.equal(slots[0].start, '19:00');
   assert.equal(slots[0].end, '20:00'); // site.gameMinutes
   assert.equal(slots[0].pad, null); // the venue name has no pad number
+  assert.equal(slots[0].kind, 'league');
   assert.equal(slots[1].start, '21:00');
   assert.ok(isFennell("South Fletcher's Sportsplex"));
 });
@@ -207,6 +208,7 @@ test('parseIcohl: season from the title, SF-3 rink, scores and gamesheet links',
   assert.equal(slots.length, 3); // other rink skipped
   assert.deepEqual(slots.map((s) => s.date), ['2026-10-07', '2026-11-18', '2027-03-31']); // Oct-Dec 2026, Mar 2027
   assert.equal(slots[0].pad, 3);
+  assert.equal(slots[0].kind, 'league');
   assert.equal(slots[0].end, '20:00');
   assert.equal(slots[0].title, 'Mavericks vs Whalers');
   assert.equal(slots[0].detail, 'Game 1 · Final 4–3');

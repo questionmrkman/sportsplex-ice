@@ -18,7 +18,8 @@
   --booking-bg: #e3e9f0;   --booking-fg: #33506e;
   --hold-bg: #f3eadb;      --hold-fg: #7a5a1c;
   --maintenance-bg: #eceff2; --maintenance-fg: #56606b;
-  --stick-bg: #eaf3cf;     --stick-fg: #4a6a00;
+  --league-bg: #e6f2c4;    --league-fg: #4a6a00;
+  --stick-bg: #fdf0cf;     --stick-fg: #7a5600;
   --program-bg: #e8ebef;   --program-fg: #3d4b5c;
   --event-bg: #fbe3ef;     --event-fg: #9c1f5b;
   --unused-bg: #f1f3f5;    --unused-fg: #6b7886;
@@ -48,7 +49,8 @@
     --booking-bg: #1c2a3a;  --booking-fg: #9cc0e6;
     --hold-bg: #33291a;     --hold-fg: #e3be7c;
     --maintenance-bg: #232a32; --maintenance-fg: #9aa7b5;
-    --stick-bg: #2a3510;    --stick-fg: #c3e06b;
+    --league-bg: #2a3510;   --league-fg: #c3e06b;
+    --stick-bg: #36290a;    --stick-fg: #f2c869;
     --program-bg: #212a35;  --program-fg: #b3c0cf;
     --event-bg: #3a1a2b;    --event-fg: #ff9cc7;
     --unused-bg: #1b232d;   --unused-fg: #7d8b9b;
@@ -135,6 +137,7 @@ input[type="search"] { flex: 1 1 240px; min-width: 0; background: var(--bg); bor
 .k-stick { --bg-k: var(--stick-bg); --fg-k: var(--stick-fg); }
 .k-program { --bg-k: var(--program-bg); --fg-k: var(--program-fg); }
 .k-event { --bg-k: var(--event-bg); --fg-k: var(--event-fg); }
+.k-league { --bg-k: var(--league-bg); --fg-k: var(--league-fg); }
 .k-unused { --bg-k: var(--unused-bg); --fg-k: var(--unused-fg); }
 
 /* timeline */
