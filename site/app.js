@@ -382,14 +382,28 @@ function chip(label, on, color, onclick) {
     color && h('span', { class: 'sw' }), label);
 }
 
+/** "Select all" / "Deselect all" for one row of chips: shows whichever applies to the row's current state. */
+function bulkToggle(excluded, values) {
+  const allOn = values.every((v) => !excluded.has(v));
+  return h('button', {
+    type: 'button', class: 'link bulk',
+    onclick: () => { for (const v of values) allOn ? excluded.add(v) : excluded.delete(v); render(); },
+  }, allOn ? 'None' : 'All');
+}
+
 function renderChips() {
   const toggle = (set, v) => { set.has(v) ? set.delete(v) : set.add(v); render(); };
-  $('#padChips').replaceChildren(...PADS.map((p) => chip(`Pad ${p}`, !state.xp.has(p), null, () => toggle(state.xp, p))));
+  $('#padChips').replaceChildren(
+    ...PADS.map((p) => chip(`Pad ${p}`, !state.xp.has(p), null, () => toggle(state.xp, p))),
+    bulkToggle(state.xp, PADS));
   const present = new Set(DATA.slots.map((s) => s.kind));
+  const kinds = Object.entries(KINDS).filter(([k]) => present.has(k));
   $('#kindChips').replaceChildren(
-    ...Object.entries(KINDS).filter(([k]) => present.has(k)).map(([k, label]) => chip(label, !state.xk.has(k), KIND_VAR(k), () => toggle(state.xk, k))));
+    ...kinds.map(([k, label]) => chip(label, !state.xk.has(k), KIND_VAR(k), () => toggle(state.xk, k))),
+    bulkToggle(state.xk, kinds.map(([k]) => k)));
   $('#srcChips').replaceChildren(
-    ...DATA.sources.map((s) => chip(SHORT[s.id] || s.name, !state.xs.has(s.id), null, () => toggle(state.xs, s.id))));
+    ...DATA.sources.map((s) => chip(SHORT[s.id] || s.name, !state.xs.has(s.id), null, () => toggle(state.xs, s.id))),
+    bulkToggle(state.xs, DATA.sources.map((s) => s.id)));
 }
 
 function relTime(iso) {
