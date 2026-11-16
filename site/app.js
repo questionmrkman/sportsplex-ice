@@ -89,7 +89,7 @@ function readUrl() {
   if (isDate(p.get('d'))) state.date = p.get('d');
   const narrow = matchMedia('(max-width: 700px)').matches;
   state.view = ['timeline', 'agenda'].includes(p.get('v')) ? p.get('v') : narrow ? 'agenda' : 'timeline';
-  state.range = p.get('r') === 'week' ? 'week' : 'day';
+  state.range = ['week', 'month'].includes(p.get('r')) ? p.get('r') : 'day';
   const set = (key) => new Set((p.get(key) || '').split(',').filter(Boolean));
   state.xp = new Set([...set('xp')].map(Number));
   state.xk = set('xk');
@@ -100,7 +100,7 @@ function writeUrl() {
   const p = new URLSearchParams();
   if (state.date !== torontoNow().date) p.set('d', state.date);
   p.set('v', state.view);
-  if (state.range === 'week') p.set('r', 'week');
+  if (state.range !== 'day') p.set('r', state.range);
   if (state.xp.size) p.set('xp', [...state.xp].join(','));
   if (state.xk.size) p.set('xk', [...state.xk].join(','));
   if (state.xs.size) p.set('xs', [...state.xs].join(','));
@@ -149,7 +149,7 @@ function visibleOn(date) {
  * Each row's counts ignore that row's own selection, so clicking a chip never reshuffles its own row.
  */
 function facetCounts() {
-  const days = state.range === 'week' ? weekDays() : [state.date];
+  const days = rangeDays();
   const items = days.flatMap((d) => BY_DATE.get(d) || []);
   const q = state.q.trim().toLowerCase();
   const tally = (skip, key) => {
@@ -206,6 +206,28 @@ function layoutLanes(items) {
 }
 
 const weekDays = () => Array.from({ length: 7 }, (_, i) => addDays(state.date, i));
+
+// ---- month helpers (weeks run Sunday-Saturday, as on the clubs' own calendars) ---
+const weekdayOf = (d) => toUTC(d).getUTCDay();
+const monthFirst = (d) => `${d.slice(0, 7)}-01`;
+const monthLast = (d) => fromUTC(new Date(Date.UTC(Number(d.slice(0, 4)), Number(d.slice(5, 7)), 0)));
+/** every date in the month being viewed */
+function monthDays() {
+  const first = monthFirst(state.date);
+  const n = Number(monthLast(state.date).slice(8));
+  return Array.from({ length: n }, (_, i) => addDays(first, i));
+}
+/** the full weeks (Sun-Sat) that cover the month, including the neighbouring months' spill-over days */
+function monthGrid() {
+  const first = monthFirst(state.date), last = monthLast(state.date);
+  const start = addDays(first, -weekdayOf(first));
+  const end = addDays(last, 6 - weekdayOf(last));
+  const out = [];
+  for (let d = start; d <= end; d = addDays(d, 1)) out.push(d);
+  return out;
+}
+/** the dates covered by the current Day / Week / Month range */
+const rangeDays = () => (state.range === 'week' ? weekDays() : state.range === 'month' ? monthDays() : [state.date]);
 
 function timeRange(items) {
   const startMin = Math.floor(Math.min(...items.map((i) => i.s)) / 60) * 60;
@@ -316,6 +338,83 @@ function renderWeekTimeline(root) {
   root.append(h('div', { class: 'tl-scroll' }, grid));
 }
 
+// ---- month --------------------------------------------------------------------
+
+const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const monthHeading = (d) => new Intl.DateTimeFormat('en-CA', { timeZone: 'UTC', month: 'long', year: 'numeric' }).format(toUTC(d));
+
+/** Merge a source's events into continuous blocks (events within 10 min of each other join up). */
+function mergeSpans(list) {
+  const spans = list.map((it) => ({ s: it.s, e: it.e ?? it.s + 60 })).sort((a, b) => a.s - b.s);
+  const out = [];
+  for (const sp of spans) {
+    const last = out.at(-1);
+    if (last && sp.s <= last.e + 10) last.e = Math.max(last.e, sp.e);
+    else out.push({ ...sp });
+  }
+  return out;
+}
+
+function openDay(date) {
+  state.date = date;
+  state.range = 'day';
+  render();
+  window.scrollTo({ top: 0 });
+}
+
+/**
+ * Month grid. Each day has one row per source; the row's coloured blocks sit on a time track that is the
+ * same for every day, so sources that run at the same time line up visually. Click a day to open it.
+ */
+function renderMonth(root) {
+  const grid = monthGrid();
+  const byDay = new Map(grid.map((d) => [d, visibleOn(d)]));
+  const all = [...byDay.values()].flat();
+  if (!all.length) return root.append(emptyState());
+
+  const { startMin, endMin } = timeRange(all);
+  const pct = (m) => ((m - startMin) / (endMin - startMin)) * 100;
+  const now = torontoNow();
+  const month = state.date.slice(0, 7);
+  const srcIndex = new Map(DATA.sources.map((s, i) => [s.id, i]));
+  const plural = (n) => `${n} event${n === 1 ? '' : 's'}`;
+
+  const el = h('div', { class: 'mo' }, DOW.map((d) => h('div', { class: 'mo-dow', 'aria-hidden': 'true' }, d)));
+  for (const date of grid) {
+    const items = byDay.get(date);
+    const bySrc = new Map();
+    for (const it of items) {
+      if (!bySrc.has(it.slot.source)) bySrc.set(it.slot.source, []);
+      bySrc.get(it.slot.source).push(it);
+    }
+    const rows = [...bySrc]
+      .map(([src, list]) => ({ src, list, first: Math.min(...list.map((i) => i.s)), last: Math.max(...list.map((i) => i.e ?? i.s + 60)), segs: mergeSpans(list) }))
+      .sort((a, b) => a.first - b.first || (srcIndex.get(a.src) ?? 99) - (srcIndex.get(b.src) ?? 99));
+
+    const cls = ['mo-cell', date.slice(0, 7) === month ? '' : 'other', date === now.date ? 'today' : '', items.length ? '' : 'empty'].filter(Boolean).join(' ');
+    el.append(h('div', {
+      class: cls, role: 'button', tabindex: '0',
+      'aria-label': `${longDate(date)}: ${plural(items.length)}. Open this day.`,
+      onclick: () => openDay(date),
+      onkeydown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDay(date); } },
+    },
+      h('div', { class: 'mo-head' },
+        h('span', { class: 'mo-date' }, String(Number(date.slice(8)))),
+        h('span', { class: 'mo-dlabel' }, shortDate(date)),
+        items.length ? h('span', { class: 'mo-total' }, plural(items.length)) : null),
+      rows.map(({ src, list, first, last, segs }) => h('div', {
+        class: 'mo-row', style: `--sc:var(--src-${src}, var(--src-other))`,
+        title: `${SHORT[src] || src}: ${plural(list.length)}, ${fmtClock(first)}–${fmtClock(last)}`,
+      },
+        h('span', { class: 'mo-lbl' }, h('i', { class: 'mo-dot' }), h('span', { class: 't' }, SHORT[src] || src), h('b', {}, list.length)),
+        h('span', { class: 'mo-track' }, segs.map((sg) => h('i', {
+          class: 'mo-seg', style: `left:${pct(sg.s)}%;width:${Math.max(pct(sg.e) - pct(sg.s), 2.5)}%`,
+        })))))));
+  }
+  root.append(el, h('p', { class: 'mo-note' },
+    `Each bar is a source's ice that day, on one shared time scale (${fmtClock(startMin)} to ${fmtClock(endMin)}). Click a day to open it.`));
+}
+
 // ---- agenda -------------------------------------------------------------------
 
 function renderAgenda(root) {
@@ -346,7 +445,7 @@ function renderAgenda(root) {
 
 function emptyState() {
   const dates = [...BY_DATE.keys()].sort();
-  const days = state.range === 'week' ? weekDays() : [state.date];
+  const days = rangeDays();
   const outside = days[0] > dates.at(-1) || days.at(-1) < dates[0];
   const filtered = days.some((d) => (BY_DATE.get(d) || []).length > 0);
   return h('div', { class: 'empty' },
@@ -387,9 +486,12 @@ function openDetail(it) {
 
 function renderHeading() {
   $('#heading').textContent =
-    state.range === 'week'
-      ? `${shortDate(state.date)} – ${shortDate(addDays(state.date, 6))}`
-      : longDate(state.date);
+    state.range === 'month'
+      ? monthHeading(state.date)
+      : state.range === 'week'
+        ? `${shortDate(state.date)} – ${shortDate(addDays(state.date, 6))}`
+        : longDate(state.date);
+  $('#viewSeg').hidden = state.range === 'month'; // the month grid is its own layout
   $('#date').value = state.date;
   document.querySelectorAll('[data-view]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.view === state.view)));
   document.querySelectorAll('[data-range]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.range === state.range)));
@@ -428,7 +530,7 @@ function renderChips() {
     bulkToggle(state.xk, kinds.map(([k]) => k)));
   $('#srcChips').replaceChildren(
     ...[...DATA.sources].sort(byCount(counts.src, (s) => s.id))
-      .map((s) => chip(SHORT[s.id] || s.name, !state.xs.has(s.id), null, () => toggle(state.xs, s.id), counts.src.get(s.id) || 0)),
+      .map((s) => chip(SHORT[s.id] || s.name, !state.xs.has(s.id), `var(--src-${s.id}, var(--src-other))`, () => toggle(state.xs, s.id), counts.src.get(s.id) || 0)),
     bulkToggle(state.xs, DATA.sources.map((s) => s.id)));
 }
 
@@ -467,15 +569,20 @@ function render() {
   renderChips();
   const root = $('#view');
   root.replaceChildren();
-  (state.view === 'timeline' ? renderTimeline : renderAgenda)(root);
+  (state.range === 'month' ? renderMonth : state.view === 'timeline' ? renderTimeline : renderAgenda)(root);
   writeUrl();
 }
 
 // ---- events -------------------------------------------------------------------
 
 function step(dir) {
-  const n = state.range === 'week' ? 7 : 1;
-  state.date = addDays(state.date, dir * n);
+  if (state.range === 'month') {
+    // first day of the previous / next month
+    const first = monthFirst(state.date);
+    state.date = dir < 0 ? monthFirst(addDays(first, -1)) : addDays(monthLast(state.date), 1);
+  } else {
+    state.date = addDays(state.date, dir * (state.range === 'week' ? 7 : 1));
+  }
   render();
 }
 
