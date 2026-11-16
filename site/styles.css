@@ -115,8 +115,11 @@ details[open] > summary::before { transform: rotate(90deg); }
   display: inline-flex; align-items: center; gap: 6px; min-height: 30px;
 }
 .chip .sw { width: 9px; height: 9px; border-radius: 50%; background: var(--c, var(--muted)); }
+.chip .cnt { font-size: .72rem; font-weight: 500; font-variant-numeric: tabular-nums; color: var(--muted); }
+.chip.zero { opacity: .55; }
 .chip[aria-pressed="true"] { background: color-mix(in srgb, var(--c, var(--accent)) 16%, transparent); border-color: var(--c, var(--accent)); font-weight: 600; }
-.chip[aria-pressed="false"] { color: var(--muted); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--muted) 60%, transparent); }
+.chip[aria-pressed="false"] { color: var(--muted); }
+.chip[aria-pressed="false"] .lbl { text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--muted) 60%, transparent); }
 .search-row { padding-top: 8px; }
 input[type="search"] { flex: 1 1 240px; min-width: 0; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 7px 11px; min-height: 36px; }
 .link { background: none; border: 0; color: var(--accent); padding: 4px 6px; }
@@ -134,10 +137,10 @@ input[type="search"] { flex: 1 1 240px; min-width: 0; background: var(--bg); bor
 .k-public { --bg-k: var(--public-bg); --fg-k: var(--public-fg); }
 .k-shinny { --bg-k: var(--shinny-bg); --fg-k: var(--shinny-fg); }
 .k-figure { --bg-k: var(--figure-bg); --fg-k: var(--figure-fg); }
+.k-league { --bg-k: var(--league-bg); --fg-k: var(--league-fg); }
 .k-stick { --bg-k: var(--stick-bg); --fg-k: var(--stick-fg); }
 .k-program { --bg-k: var(--program-bg); --fg-k: var(--program-fg); }
 .k-event { --bg-k: var(--event-bg); --fg-k: var(--event-fg); }
-.k-league { --bg-k: var(--league-bg); --fg-k: var(--league-fg); }
 .k-unused { --bg-k: var(--unused-bg); --fg-k: var(--unused-fg); }
 
 /* timeline */

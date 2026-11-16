@@ -129,17 +129,35 @@ async function load() {
   prepare(DATA);
 }
 
+/** Does an item pass the current filters? `skip` ('pad' | 'kind' | 'src') ignores one filter row (used for counts). */
+function passesFilters(it, skip, q = state.q.trim().toLowerCase()) {
+  const { slot } = it;
+  if (skip !== 'pad' && slot.pad != null && state.xp.has(slot.pad)) return false;
+  if (skip !== 'kind' && state.xk.has(slot.kind)) return false;
+  if (skip !== 'src' && state.xs.has(slot.source)) return false;
+  return !q || it.hay.includes(q);
+}
+
 function visibleOn(date) {
-  const q = state.q.trim().toLowerCase();
   return (BY_DATE.get(date) || [])
-    .filter((it) => {
-      const { slot } = it;
-      if (slot.pad != null && state.xp.has(slot.pad)) return false;
-      if (state.xk.has(slot.kind)) return false;
-      if (state.xs.has(slot.source)) return false;
-      return !q || it.hay.includes(q);
-    })
+    .filter((it) => passesFilters(it))
     .sort((a, b) => a.s - b.s || (a.slot.pad ?? 9) - (b.slot.pad ?? 9));
+}
+
+/**
+ * How many items each chip would show in the range being viewed (the day, or the 7 days of the week).
+ * Each row's counts ignore that row's own selection, so clicking a chip never reshuffles its own row.
+ */
+function facetCounts() {
+  const days = state.range === 'week' ? weekDays() : [state.date];
+  const items = days.flatMap((d) => BY_DATE.get(d) || []);
+  const q = state.q.trim().toLowerCase();
+  const tally = (skip, key) => {
+    const m = new Map();
+    for (const it of items) if (passesFilters(it, skip, q)) m.set(key(it.slot), (m.get(key(it.slot)) || 0) + 1);
+    return m;
+  };
+  return { pad: tally('pad', (s) => s.pad), kind: tally('kind', (s) => s.kind), src: tally('src', (s) => s.source) };
 }
 
 // ---- text helpers -------------------------------------------------------------
@@ -378,9 +396,9 @@ function renderHeading() {
   $('#q').value = state.q;
 }
 
-function chip(label, on, color, onclick) {
-  return h('button', { type: 'button', class: 'chip', 'aria-pressed': String(on), style: color ? `--c:${color}` : null, onclick },
-    color && h('span', { class: 'sw' }), label);
+function chip(label, on, color, onclick, count) {
+  return h('button', { type: 'button', class: `chip${count === 0 ? ' zero' : ''}`, 'aria-pressed': String(on), style: color ? `--c:${color}` : null, onclick },
+    color && h('span', { class: 'sw' }), h('span', { class: 'lbl' }, label), count != null && h('span', { class: 'cnt' }, count));
 }
 
 /** "Select all" / "Deselect all" for one row of chips: shows whichever applies to the row's current state. */
@@ -394,16 +412,23 @@ function bulkToggle(excluded, values) {
 
 function renderChips() {
   const toggle = (set, v) => { set.has(v) ? set.delete(v) : set.add(v); render(); };
+  const counts = facetCounts();
+  // Busiest first for the day/week being viewed; ties keep their original order (the sort is stable), empty ones sink.
+  const byCount = (m, key) => (a, b) => (m.get(key(b)) || 0) - (m.get(key(a)) || 0);
+
+  // pads stay in numeric order (1-4 is the natural order) but show their counts
   $('#padChips').replaceChildren(
-    ...PADS.map((p) => chip(`Pad ${p}`, !state.xp.has(p), null, () => toggle(state.xp, p))),
+    ...PADS.map((p) => chip(`Pad ${p}`, !state.xp.has(p), null, () => toggle(state.xp, p), counts.pad.get(p) || 0)),
     bulkToggle(state.xp, PADS));
   const present = new Set(DATA.slots.map((s) => s.kind));
   const kinds = Object.entries(KINDS).filter(([k]) => present.has(k));
   $('#kindChips').replaceChildren(
-    ...kinds.map(([k, label]) => chip(label, !state.xk.has(k), KIND_VAR(k), () => toggle(state.xk, k))),
+    ...[...kinds].sort(byCount(counts.kind, ([k]) => k))
+      .map(([k, label]) => chip(label, !state.xk.has(k), KIND_VAR(k), () => toggle(state.xk, k), counts.kind.get(k) || 0)),
     bulkToggle(state.xk, kinds.map(([k]) => k)));
   $('#srcChips').replaceChildren(
-    ...DATA.sources.map((s) => chip(SHORT[s.id] || s.name, !state.xs.has(s.id), null, () => toggle(state.xs, s.id))),
+    ...[...DATA.sources].sort(byCount(counts.src, (s) => s.id))
+      .map((s) => chip(SHORT[s.id] || s.name, !state.xs.has(s.id), null, () => toggle(state.xs, s.id), counts.src.get(s.id) || 0)),
     bulkToggle(state.xs, DATA.sources.map((s) => s.id)));
 }
 
