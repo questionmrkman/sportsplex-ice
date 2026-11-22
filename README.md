@@ -67,6 +67,17 @@ per pad: pad, date, time, event name, service, exactly as printed). It's treated
 - The team sites redirect months ~5 months out to a bot-check page. The scraper stops at that point rather than
   trying to get past it.
 
+## Install as a phone app
+
+The site is an installable web app (`site/manifest.webmanifest`, `site/sw.js`, icons in `site/icons/`).
+- **Android (Chrome):** menu ⋮ → *Install app* (or *Add to Home screen*).
+- **iPhone (Safari):** Share → *Add to Home Screen*.
+
+Once installed it opens full-screen with its own icon, and shows the last schedule it saw when the phone is offline
+(the service worker is network-first, so it never shows stale data while online). The **Share** button in the header
+only appears inside the installed app, not in a browser tab. To change the icon, edit `scripts/make-icons.py`
+(needs Pillow) and run `python scripts/make-icons.py`.
+
 ## Deploy to GitHub Pages
 
 `.github/workflows/pages.yml` re-scrapes and redeploys the site every 30 minutes (and on every push to `main`).

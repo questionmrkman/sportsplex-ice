@@ -606,6 +606,36 @@ function bind() {
   setInterval(refresh, 10 * 60 * 1000);
 }
 
+// True when the page runs as an installed app (home-screen icon) rather than in a browser tab.
+function isInstalledApp() {
+  return navigator.standalone === true // iOS Safari
+    || ['standalone', 'fullscreen', 'minimal-ui'].some((m) => matchMedia(`(display-mode: ${m})`).matches);
+}
+
+// Share the current view (date, filters and view mode are all in the URL). Only offered inside the installed app, and
+// only where there is a native share sheet; a browser tab already has its own share / copy-link controls.
+// If sharing fails for any other reason, copy the link instead.
+function bindShare() {
+  const btn = $('#share');
+  if (!navigator.share || !isInstalledApp()) return;
+  btn.hidden = false;
+  const lbl = $('#shareLbl');
+  let timer;
+  const flash = (text) => { lbl.textContent = text; clearTimeout(timer); timer = setTimeout(() => (lbl.textContent = 'Share'), 2000); };
+  btn.onclick = async () => {
+    // The address bar omits the date when it's today; a shared link must pin it, or it would open on the reader's "today".
+    const link = new URL(location.href);
+    link.searchParams.set('d', state.date);
+    const data = { title: 'Fennell Ice Schedule', text: `Ice schedule at Susan Fennell Sportsplex — ${$('#heading').textContent}`, url: link.href };
+    try {
+      await navigator.share(data);
+    } catch (err) {
+      if (err?.name === 'AbortError') return; // the user closed the share sheet
+      try { await navigator.clipboard.writeText(link.href); flash('Link copied'); } catch { flash("Couldn't share"); }
+    }
+  };
+}
+
 async function refresh() {
   try {
     const before = DATA?.generatedAt;
@@ -613,6 +643,9 @@ async function refresh() {
     if (DATA.generatedAt !== before) { renderMeta(); render(); } else renderMeta();
   } catch { /* keep showing what we have */ }
 }
+
+// Lets the phone offer "Install app" and open the last-seen schedule when offline (see sw.js).
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 
 (async function init() {
   readUrl();
@@ -627,6 +660,7 @@ async function refresh() {
   const today = torontoNow().date;
   state.date ||= today;
   bind();
+  bindShare();
   renderMeta();
   render();
 })();

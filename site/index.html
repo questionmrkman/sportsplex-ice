@@ -6,6 +6,13 @@
   <title>Fennell Ice Schedule</title>
   <meta name="description" content="Live ice schedule for all four pads at Susan Fennell Sportsplex in Brampton: games, practices, public skates and shinny.">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8F%92%3C/text%3E%3C/svg%3E">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#161e28" media="(prefers-color-scheme: dark)">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Fennell Ice">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -15,7 +22,13 @@
         <h1>Fennell Ice Schedule</h1>
         <p class="sub">Susan Fennell Sportsplex · Brampton, ON · Pads 1–4</p>
       </div>
-      <div class="freshness" id="freshness" role="status" aria-live="polite">Loading…</div>
+      <div class="top-right">
+        <div class="freshness" id="freshness" role="status" aria-live="polite">Loading…</div>
+        <button type="button" id="share" class="share" hidden aria-label="Share this view">
+          <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3"/><path d="M8 7l4-4 4 4"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>
+          <span id="shareLbl">Share</span>
+        </button>
+      </div>
     </div>
   </header>
 
