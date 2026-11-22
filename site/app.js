@@ -644,6 +644,25 @@ async function refresh() {
   } catch { /* keep showing what we have */ }
 }
 
+// "Install app" button. Chrome/Android fires `beforeinstallprompt` when the site can be installed; we keep the event
+// and show the button, which opens the browser's own install dialog. Safari (iPhone) never fires it, so no button there.
+let installEvent = null;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  if (isInstalledApp()) return;
+  installEvent = e;
+  $('#install').hidden = false;
+});
+window.addEventListener('appinstalled', () => { installEvent = null; $('#install').hidden = true; });
+$('#install').onclick = async () => {
+  if (!installEvent) return;
+  const ev = installEvent;
+  installEvent = null; // an install prompt can only be used once
+  $('#install').hidden = true;
+  // If the person dismisses the dialog the button stays hidden until the browser offers installation again.
+  try { await ev.prompt(); } catch { /* ignore */ }
+};
+
 // Lets the phone offer "Install app" and open the last-seen schedule when offline (see sw.js).
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 

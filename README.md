@@ -70,7 +70,8 @@ per pad: pad, date, time, event name, service, exactly as printed). It's treated
 ## Install as a phone app
 
 The site is an installable web app (`site/manifest.webmanifest`, `site/sw.js`, icons in `site/icons/`).
-- **Android (Chrome):** menu ⋮ → *Install app* (or *Add to Home screen*).
+- **Android (Chrome):** tap the *Install app* button in the page header (it appears when the browser says the site can be
+  installed, and disappears once installed), or use menu ⋮ → *Install app*.
 - **iPhone (Safari):** Share → *Add to Home Screen*.
 
 Once installed it opens full-screen with its own icon, and shows the last schedule it saw when the phone is offline
