@@ -9,6 +9,7 @@ import {
   UA, parseTeamCalendar, parsePerfectMindClass, parsePerfectMindCourse, parseHockeyLeagueStats, parseIcohl, parseTwoNations, parseTournamentDay, tournamentDate, tournamentDayLinks,
 } from './sources.js';
 import { facilitySlots } from './facility.js';
+import { weeklySlots } from './weekly.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const OUT_FILE = path.join(ROOT, 'site', 'data', 'schedule.json');
@@ -36,6 +37,18 @@ export const SOURCES = [
   },
   { id: 'icohl', name: 'ICOHL', type: 'icohl', gameMinutes: 60, url: 'https://icohl.com/202627/schedule.html' },
   { id: 'tgif', name: "TGIF Men's Hockey", type: 'hls', gameMinutes: 60, url: 'https://www.hockeyleaguestats.com/tgif/?go=schedule&did=13&sid=48' },
+  // Weekly leagues with no published calendar: times come from the organizers (see weekly.js). Both skate Pad 4 on Sundays
+  // from Nov 22 2026 through Mar 28 2027; add dates to `skip` for weeks they don't skate.
+  {
+    id: 'oldboyz', name: "Men's Old Boyz", type: 'weekly', url: null,
+    weekday: 0, pad: 4, from: '2026-11-22', until: '2027-03-28',
+    sessions: [{ start: '10:15', end: '11:15' }, { start: '11:15', end: '12:15' }],
+  },
+  {
+    id: 'oldtimers', name: 'Heart Lake Oldtimers', type: 'weekly', url: null,
+    weekday: 0, pad: 4, from: '2026-11-22', until: '2027-03-28',
+    sessions: [{ start: '14:15', end: '15:35' }, { start: '15:35', end: '16:55' }, { start: '16:55', end: '18:15' }],
+  },
   {
     id: 'city',
     name: 'City of Brampton (Public)',
@@ -270,6 +283,8 @@ export async function runScrape({ months = 8, days = 75, write = true } = {}) {
               ? { slots: await scrapeTournament(site), note: null }
               : site.type === 'twonations'
                 ? { slots: await scrapeTwoNations(site), note: null }
+              : site.type === 'weekly'
+                ? { slots: weeklySlots(site), note: `Every ${['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][site.weekday]} ${site.from} to ${site.until}; times supplied by the organizer (no published calendar)` }
               : site.type === 'icohl'
                 ? { slots: await scrapeIcohl(site), note: null }
               : site.type === 'hls'

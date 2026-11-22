@@ -13,6 +13,7 @@ Tracks the ice at **Susan Fennell Sportsplex** (Pads 1–4) by combining eleven 
 | 2 Nations (published Google Sheet) | 2 Nations tournament games on Pads 1-4 (Dec 4-6, 2026) | tournament dates |
 | icohl.com | ICOHL games (Pad 3, Wednesdays) | whole season |
 | hockeyleaguestats.com/tgif | TGIF Men's Hockey games (Fridays; the site doesn't say which pad) | whole season |
+| Men's Old Boyz, Heart Lake Oldtimers (supplied by the organizers) | Weekly Sunday leagues on Pad 4 | Nov 22 2026 – Mar 28 2027 |
 | City of Brampton Learn to Skate (PerfectMind) | Skating lessons (3–6, 6–14, 14+, private): every session of each course | current course terms |
 | City of Brampton (PerfectMind) | Public skate, shinny, figure skating | ~2 weeks |
 
@@ -57,6 +58,9 @@ per pad: pad, date, time, event name, service, exactly as printed). It's treated
 - The McLaughlin Meds league page needs a normal `Accept` header (it answers 406 to a bare request) and shows dates
   without a year; the year comes from the "2026 / 2027" season heading, so a new season means a new `sid` in the URL. The TGIF league lists its venue as "South Fletchers Sportplex" (the former name of
   Susan Fennell) with no pad number, so its games show under "Pad unknown".
+- Men's Old Boyz and Heart Lake Oldtimers have no published calendar. Their weekday, pad, time blocks and first/last date
+  are typed into `SOURCES` (`type: 'weekly'`, see `scraper/weekly.js`); every week in between becomes slots. To drop a week
+  they don't skate, add its date to `skip`; to extend the season, change `until`.
 - Learn to Skate courses come from four City calendars (listed in `SOURCES`). The City publishes each course as a
   series, so every dated session becomes its own slot. Registration status is shown (all are currently "closed" —
   the term has started); lessons use the City's real start/end times.
