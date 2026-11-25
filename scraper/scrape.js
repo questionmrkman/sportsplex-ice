@@ -49,6 +49,15 @@ export const SOURCES = [
     weekday: 0, pad: 4, from: '2026-11-22', until: '2027-03-28',
     sessions: [{ start: '14:15', end: '15:35' }, { start: '15:35', end: '16:55' }, { start: '16:55', end: '18:15' }],
   },
+  // BMRHL men's league: Mondays on Pad 4, 7:15-11:15 pm in four one-hour blocks (same season window as the Sunday leagues).
+  {
+    id: 'bmrhl', name: 'BMRHL', type: 'weekly', url: null,
+    weekday: 1, pad: 4, from: '2026-11-30', until: '2027-03-28',
+    sessions: [
+      { start: '19:15', end: '20:15' }, { start: '20:15', end: '21:15' },
+      { start: '21:15', end: '22:15' }, { start: '22:15', end: '23:15' },
+    ],
+  },
   {
     id: 'city',
     name: 'City of Brampton (Public)',

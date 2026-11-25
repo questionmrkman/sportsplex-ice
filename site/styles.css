@@ -20,7 +20,7 @@
   --src-capitals: #d55e00;   --src-bhl: #0072b2;      --src-canadettes: #cc79a7; --src-silverstick: #e69f00;
   --src-twonations: #7b5ea7; --src-mmeds: #009e73;    --src-icohl: #3aa6dd;      --src-tgif: #b3a100;
   --src-city: #8c564b;       --src-lessons: #4f55d6;  --src-facility: #6b7280;   --src-other: #8a94a0;
-  --src-oldboyz: #b5323f;    --src-oldtimers: #5c7a29;
+  --src-oldboyz: #b5323f;    --src-oldtimers: #5c7a29;  --src-bmrhl: #1b8a9a;
   --booking-bg: #e3e9f0;   --booking-fg: #33506e;
   --hold-bg: #f3eadb;      --hold-fg: #7a5a1c;
   --maintenance-bg: #eceff2; --maintenance-fg: #56606b;
@@ -56,7 +56,7 @@
     --src-capitals: #ff8a3d;   --src-bhl: #4da3e0;      --src-canadettes: #e5a0c8; --src-silverstick: #f5b93a;
     --src-twonations: #a58bd6; --src-mmeds: #3cc79a;    --src-icohl: #7cccf2;      --src-tgif: #d9cb33;
     --src-city: #c08a7a;       --src-lessons: #8c93f0;  --src-facility: #9aa3af;   --src-other: #9aa3af;
-    --src-oldboyz: #ef6a75;    --src-oldtimers: #9acd4d;
+    --src-oldboyz: #ef6a75;    --src-oldtimers: #9acd4d;  --src-bmrhl: #56c8d8;
     --booking-bg: #1c2a3a;  --booking-fg: #9cc0e6;
     --hold-bg: #33291a;     --hold-fg: #e3be7c;
     --maintenance-bg: #232a32; --maintenance-fg: #9aa7b5;

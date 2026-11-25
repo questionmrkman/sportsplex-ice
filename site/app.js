@@ -26,7 +26,7 @@ const KIND_SINGULAR = {
   stick: 'Stick & puck', program: 'Program', event: 'Event', unused: 'Unused ice',
   booking: 'Ice booking', hold: 'Hold', maintenance: 'Ice maintenance',
 };
-const SHORT = { capitals: 'Capitals', bhl: 'Brampton Hockey', canadettes: 'Canadettes', silverstick: 'Silver Stick', mmeds: 'McLaughlin Meds', tgif: 'TGIF', icohl: 'ICOHL', twonations: '2 Nations', oldboyz: 'Old Boyz', oldtimers: 'Heart Lake', lessons: 'Learn to Skate', city: 'City of Brampton', facility: 'Facility schedule' };
+const SHORT = { capitals: 'Capitals', bhl: 'Brampton Hockey', canadettes: 'Canadettes', silverstick: 'Silver Stick', mmeds: 'McLaughlin Meds', tgif: 'TGIF', icohl: 'ICOHL', twonations: '2 Nations', oldboyz: 'Old Boyz', oldtimers: 'Heart Lake', bmrhl: 'BMRHL', lessons: 'Learn to Skate', city: 'City of Brampton', facility: 'Facility schedule' };
 
 const $ = (sel) => document.querySelector(sel);
 
